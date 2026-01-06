@@ -23,8 +23,7 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
+// Removed Checkbox and Badge imports - using custom checkbox to avoid ref issues
 import StatusIndicator from "./StatusIndicator";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -483,32 +482,37 @@ const IntegrationForm = () => {
                     ) : (
                       <>
                         <div className="border rounded-lg bg-background p-3 space-y-2 max-h-48 overflow-y-auto">
-                          {eventTypes.map((et) => (
-                            <div
-                              key={et.uri}
-                              className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
-                                selectedEventTypes.includes(et.uri) 
-                                  ? 'bg-primary/10 border border-primary/30' 
-                                  : 'hover:bg-muted/50'
-                              }`}
-                              onClick={() => toggleEventType(et.uri)}
-                            >
-                              <Checkbox
-                                checked={selectedEventTypes.includes(et.uri)}
-                                onCheckedChange={() => toggleEventType(et.uri)}
-                                className="pointer-events-none"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-foreground truncate">
-                                  {et.name}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {et.duration} min • {et.type}
-                                </p>
+                          {eventTypes.map((et) => {
+                            const isSelected = selectedEventTypes.includes(et.uri);
+                            return (
+                              <div
+                                key={et.uri}
+                                className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+                                  isSelected 
+                                    ? 'bg-primary/10 border border-primary/30' 
+                                    : 'hover:bg-muted/50'
+                                }`}
+                                onClick={() => toggleEventType(et.uri)}
+                              >
+                                <div className={`h-4 w-4 rounded border flex items-center justify-center ${
+                                  isSelected ? 'bg-primary border-primary' : 'border-input'
+                                }`}>
+                                  {isSelected && (
+                                    <CheckCircle2 className="h-3 w-3 text-primary-foreground" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">
+                                    {et.name}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {et.duration} min • {et.type}
+                                  </p>
+                                </div>
+                                <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                               </div>
-                              <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         
                         {selectedEventTypes.length > 0 && (
@@ -516,10 +520,9 @@ const IntegrationForm = () => {
                             {selectedEventTypes.map((uri) => {
                               const et = eventTypes.find(e => e.uri === uri);
                               return et ? (
-                                <Badge 
+                                <span 
                                   key={uri} 
-                                  variant="secondary"
-                                  className="text-xs pl-2 pr-1 py-0.5 flex items-center gap-1"
+                                  className="inline-flex items-center gap-1 text-xs bg-secondary text-secondary-foreground pl-2 pr-1 py-0.5 rounded-md"
                                 >
                                   {et.name}
                                   <button
@@ -532,7 +535,7 @@ const IntegrationForm = () => {
                                   >
                                     <X className="h-3 w-3" />
                                   </button>
-                                </Badge>
+                                </span>
                               ) : null;
                             })}
                           </div>
@@ -548,6 +551,20 @@ const IntegrationForm = () => {
                     )}
                   </FormItem>
                 )}
+
+                {/* Conversifi Webhook Section */}
+                <div className="rounded-xl border bg-muted/30 p-4">
+                  <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                    <Link2 className="h-4 w-4" />
+                    Conversifi Webhook
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Use this webhook URL in Conversifi to receive booking notifications
+                  </p>
+                  <div className="bg-background border rounded-md p-2 font-mono text-xs text-foreground break-all">
+                    https://ifnxhardrbzrtoghhfcr.supabase.co/functions/v1/conversifi-webhook
+                  </div>
+                </div>
 
                 <FormField
                   control={form.control}
