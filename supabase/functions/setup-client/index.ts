@@ -104,7 +104,36 @@ serve(async (req) => {
       console.log('Webhook registered successfully:', webhookId);
     } else {
       const webhookError = await webhookResponse.text();
-      console.warn('Webhook registration failed (may already exist):', webhookError);
+      console.warn('Webhook registration failed:', webhookError);
+      
+      // Check if webhook already exists - try to find it
+      if (webhookError.includes('Already exists') || webhookError.includes('already exists')) {
+        console.log('Webhook already exists, attempting to find existing webhook...');
+        try {
+          const listResponse = await fetch(
+            `https://api.calendly.com/webhook_subscriptions?organization=${encodeURIComponent(orgUri)}&scope=user&user=${encodeURIComponent(userUri)}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${calendly_token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          if (listResponse.ok) {
+            const listData = await listResponse.json();
+            const existingWebhook = listData.collection?.find(
+              (wh: { callback_url: string }) => wh.callback_url === webhookUrl
+            );
+            if (existingWebhook) {
+              webhookId = existingWebhook.uri;
+              console.log('Found existing webhook:', webhookId);
+            }
+          }
+        } catch (listError) {
+          console.warn('Failed to list existing webhooks:', listError);
+        }
+      }
     }
 
     // Step 3: Store connection in database with access_token

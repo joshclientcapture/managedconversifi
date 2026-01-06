@@ -12,16 +12,16 @@ serve(async (req) => {
   }
 
   try {
-    const { calendly_token, org_uri } = await req.json();
+    const { calendly_token, org_uri, user_uri } = await req.json();
 
-    if (!calendly_token || !org_uri) {
-      throw new Error('Calendly token and org_uri are required');
+    if (!calendly_token || !org_uri || !user_uri) {
+      throw new Error('Calendly token, org_uri, and user_uri are required');
     }
 
-    console.log('Fetching webhooks for org:', org_uri);
+    console.log('Fetching webhooks for user:', user_uri);
 
     const response = await fetch(
-      `https://api.calendly.com/webhook_subscriptions?organization=${encodeURIComponent(org_uri)}&scope=organization`,
+      `https://api.calendly.com/webhook_subscriptions?organization=${encodeURIComponent(org_uri)}&scope=user&user=${encodeURIComponent(user_uri)}`,
       {
         headers: {
           'Authorization': `Bearer ${calendly_token}`,

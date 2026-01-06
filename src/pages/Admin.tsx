@@ -78,6 +78,7 @@ const Admin = () => {
         body: {
           calendly_token: connection.calendly_token,
           org_uri: connection.calendly_org_uri,
+          user_uri: connection.calendly_user_uri,
         },
       });
 
