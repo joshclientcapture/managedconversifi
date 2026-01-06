@@ -17,6 +17,8 @@ export type Database = {
       bookings: {
         Row: {
           calendly_event_id: string | null
+          calendly_event_uri: string | null
+          calendly_invitee_uri: string | null
           client_connection_id: string
           contact_email: string | null
           contact_name: string | null
@@ -24,11 +26,14 @@ export type Database = {
           created_at: string | null
           event_time: string | null
           event_type: string | null
+          event_type_name: string | null
           id: string
           raw_payload: Json | null
         }
         Insert: {
           calendly_event_id?: string | null
+          calendly_event_uri?: string | null
+          calendly_invitee_uri?: string | null
           client_connection_id: string
           contact_email?: string | null
           contact_name?: string | null
@@ -36,11 +41,14 @@ export type Database = {
           created_at?: string | null
           event_time?: string | null
           event_type?: string | null
+          event_type_name?: string | null
           id?: string
           raw_payload?: Json | null
         }
         Update: {
           calendly_event_id?: string | null
+          calendly_event_uri?: string | null
+          calendly_invitee_uri?: string | null
           client_connection_id?: string
           contact_email?: string | null
           contact_name?: string | null
@@ -48,6 +56,7 @@ export type Database = {
           created_at?: string | null
           event_time?: string | null
           event_type?: string | null
+          event_type_name?: string | null
           id?: string
           raw_payload?: Json | null
         }
@@ -63,12 +72,14 @@ export type Database = {
       }
       client_connections: {
         Row: {
+          calendly_org_uri: string | null
           calendly_token: string
           calendly_user_uri: string | null
           calendly_webhook_id: string | null
           client_name: string
           created_at: string | null
           ghl_location_id: string
+          ghl_location_name: string | null
           id: string
           is_active: boolean | null
           slack_channel_id: string
@@ -76,12 +87,14 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          calendly_org_uri?: string | null
           calendly_token: string
           calendly_user_uri?: string | null
           calendly_webhook_id?: string | null
           client_name: string
           created_at?: string | null
           ghl_location_id: string
+          ghl_location_name?: string | null
           id?: string
           is_active?: boolean | null
           slack_channel_id: string
@@ -89,12 +102,14 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          calendly_org_uri?: string | null
           calendly_token?: string
           calendly_user_uri?: string | null
           calendly_webhook_id?: string | null
           client_name?: string
           created_at?: string | null
           ghl_location_id?: string
+          ghl_location_name?: string | null
           id?: string
           is_active?: boolean | null
           slack_channel_id?: string

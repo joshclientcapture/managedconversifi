@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff, Hash } from "lucide-react";
+import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff, Hash, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,15 +45,21 @@ interface ServiceStatuses {
 }
 
 interface GhlLocation {
-  location_id: string;
-  location_name: string;
-  owner_name: string | null;
+  locationId: string;
+  locationName: string;
+  ownerName: string;
 }
 
 interface SlackChannel {
   id: string;
   name: string;
-  is_private: boolean;
+}
+
+interface CalendlyInfo {
+  userUri: string;
+  orgUri: string;
+  userName: string;
+  userEmail: string;
 }
 
 interface ConnectionResult {
@@ -72,6 +78,9 @@ const IntegrationForm = () => {
   const [slackChannels, setSlackChannels] = useState<SlackChannel[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [loadingChannels, setLoadingChannels] = useState(true);
+  const [calendlyInfo, setCalendlyInfo] = useState<CalendlyInfo | null>(null);
+  const [validatingCalendly, setValidatingCalendly] = useState(false);
+  const [calendlyError, setCalendlyError] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<ServiceStatuses>({
     calendly: "idle",
     ghl: "idle",
@@ -90,55 +99,95 @@ const IntegrationForm = () => {
     mode: "onChange",
   });
 
-  // Fetch GHL locations from Supabase
-  useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('ghl_locations')
-          .select('location_id, location_name, owner_name')
-          .order('location_name');
-
-        if (error) throw error;
-        setGhlLocations(data || []);
-      } catch (error) {
-        console.error('Error fetching GHL locations:', error);
-      } finally {
-        setLoadingLocations(false);
-      }
-    };
-
-    fetchLocations();
+  // Fetch GHL locations from edge function
+  const fetchLocations = useCallback(async () => {
+    setLoadingLocations(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-ghl-locations');
+      
+      if (error) throw error;
+      setGhlLocations(data?.locations || []);
+    } catch (error) {
+      console.error('Error fetching GHL locations:', error);
+    } finally {
+      setLoadingLocations(false);
+    }
   }, []);
 
   // Fetch Slack channels from edge function
-  useEffect(() => {
-    const fetchChannels = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('get-slack-channels');
-        
-        if (error) throw error;
-        setSlackChannels(data?.channels || []);
-      } catch (error) {
-        console.error('Error fetching Slack channels:', error);
-      } finally {
-        setLoadingChannels(false);
-      }
-    };
-
-    fetchChannels();
+  const fetchChannels = useCallback(async () => {
+    setLoadingChannels(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-slack-channels');
+      
+      if (error) throw error;
+      setSlackChannels(data?.channels || []);
+    } catch (error) {
+      console.error('Error fetching Slack channels:', error);
+    } finally {
+      setLoadingChannels(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchLocations();
+    fetchChannels();
+  }, [fetchLocations, fetchChannels]);
+
+  // Validate Calendly token on blur
+  const validateCalendlyToken = async (token: string) => {
+    if (!token || token.length < 10) {
+      setCalendlyInfo(null);
+      setCalendlyError(null);
+      setStatuses(prev => ({ ...prev, calendly: "idle" }));
+      return;
+    }
+
+    setValidatingCalendly(true);
+    setCalendlyError(null);
+    setStatuses(prev => ({ ...prev, calendly: "connecting" }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('get-calendly-info', {
+        body: { calendly_token: token }
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Invalid token');
+      }
+
+      setCalendlyInfo({
+        userUri: data.userUri,
+        orgUri: data.orgUri,
+        userName: data.userName,
+        userEmail: data.userEmail,
+      });
+      setStatuses(prev => ({ ...prev, calendly: "connected" }));
+    } catch (error) {
+      console.error('Calendly validation error:', error);
+      setCalendlyError(error instanceof Error ? error.message : 'Invalid Calendly token');
+      setCalendlyInfo(null);
+      setStatuses(prev => ({ ...prev, calendly: "error" }));
+    } finally {
+      setValidatingCalendly(false);
+    }
+  };
+
   const onSubmit = async (values: FormValues) => {
+    if (!calendlyInfo) {
+      setConnectionError('Please validate your Calendly token first');
+      return;
+    }
+
     setIsSubmitting(true);
     setConnectionError(null);
     setConnectionSuccess(false);
 
     try {
-      // Update status indicators
-      setStatuses(prev => ({ ...prev, calendly: "connecting" }));
-      
-      // Get the selected channel name
+      // Get the selected location and channel names
+      const selectedLocation = ghlLocations.find(loc => loc.locationId === values.ghlLocation);
       const selectedChannel = slackChannels.find(ch => ch.id === values.slackChannel);
 
       // Call the setup-client edge function
@@ -146,7 +195,10 @@ const IntegrationForm = () => {
         body: {
           client_name: values.clientName,
           calendly_token: values.calendlyToken,
+          calendly_user_uri: calendlyInfo.userUri,
+          calendly_org_uri: calendlyInfo.orgUri,
           ghl_location_id: values.ghlLocation,
+          ghl_location_name: selectedLocation?.locationName || '',
           slack_channel_id: values.slackChannel,
           slack_channel_name: selectedChannel?.name || ''
         }
@@ -159,8 +211,6 @@ const IntegrationForm = () => {
       }
 
       // Animate status updates
-      setStatuses(prev => ({ ...prev, calendly: "connected" }));
-      await new Promise(r => setTimeout(r, 300));
       setStatuses(prev => ({ ...prev, ghl: "connected" }));
       await new Promise(r => setTimeout(r, 300));
       setStatuses(prev => ({ ...prev, slack: "connected" }));
@@ -170,6 +220,7 @@ const IntegrationForm = () => {
       setConnectionResult(data.connection);
       setConnectionSuccess(true);
       form.reset();
+      setCalendlyInfo(null);
 
       // Auto-reset after 5 seconds
       setTimeout(() => {
@@ -179,12 +230,12 @@ const IntegrationForm = () => {
     } catch (error) {
       console.error('Connection error:', error);
       setConnectionError(error instanceof Error ? error.message : 'Failed to establish connection');
-      setStatuses({
-        calendly: "error",
+      setStatuses(prev => ({
+        ...prev,
         ghl: "error",
         slack: "error",
         database: "error",
-      });
+      }));
     } finally {
       setIsSubmitting(false);
     }
@@ -193,6 +244,8 @@ const IntegrationForm = () => {
   const resetForm = () => {
     setConnectionSuccess(false);
     setConnectionResult(null);
+    setCalendlyInfo(null);
+    setCalendlyError(null);
     setStatuses({
       calendly: "idle",
       ghl: "idle",
@@ -289,6 +342,10 @@ const IntegrationForm = () => {
                             placeholder="Paste Calendly Personal Access Token"
                             className="h-11 pr-10 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all"
                             {...field}
+                            onBlur={(e) => {
+                              field.onBlur();
+                              validateCalendlyToken(e.target.value);
+                            }}
                           />
                           <Button
                             type="button"
@@ -308,6 +365,24 @@ const IntegrationForm = () => {
                       <FormDescription className="text-xs text-muted-foreground">
                         Get this from Calendly → Integrations → API & Webhooks
                       </FormDescription>
+                      {validatingCalendly && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Validating token...
+                        </p>
+                      )}
+                      {calendlyInfo && (
+                        <p className="text-xs text-success flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Valid token for {calendlyInfo.userName} ({calendlyInfo.userEmail})
+                        </p>
+                      )}
+                      {calendlyError && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {calendlyError}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -318,21 +393,34 @@ const IntegrationForm = () => {
                   name="ghlLocation"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground font-medium">GHL Location</FormLabel>
+                      <div className="flex items-center justify-between">
+                        <FormLabel className="text-foreground font-medium">GHL Location</FormLabel>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={fetchLocations}
+                          disabled={loadingLocations}
+                        >
+                          <RefreshCw className={`h-3 w-3 mr-1 ${loadingLocations ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </Button>
+                      </div>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
                             <SelectValue placeholder={loadingLocations ? "Loading locations..." : "Select GHL Location"} />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="bg-popover border shadow-lg">
+                        <SelectContent className="bg-popover border shadow-lg max-h-60">
                           {ghlLocations.map((location) => (
                             <SelectItem
-                              key={location.location_id}
-                              value={location.location_id}
+                              key={location.locationId}
+                              value={location.locationId}
                               className="cursor-pointer hover:bg-accent focus:bg-accent"
                             >
-                              {location.location_name} {location.owner_name && `(${location.owner_name})`}
+                              {location.locationName} ({location.ownerName})
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -347,7 +435,20 @@ const IntegrationForm = () => {
                   name="slackChannel"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-foreground font-medium">Slack Channel</FormLabel>
+                      <div className="flex items-center justify-between">
+                        <FormLabel className="text-foreground font-medium">Slack Channel</FormLabel>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={fetchChannels}
+                          disabled={loadingChannels}
+                        >
+                          <RefreshCw className={`h-3 w-3 mr-1 ${loadingChannels ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </Button>
+                      </div>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
@@ -364,7 +465,6 @@ const IntegrationForm = () => {
                               <span className="flex items-center gap-2">
                                 <Hash className="h-3 w-3 text-muted-foreground" />
                                 {channel.name}
-                                {channel.is_private && <span className="text-xs text-muted-foreground">(private)</span>}
                               </span>
                             </SelectItem>
                           ))}
@@ -378,7 +478,7 @@ const IntegrationForm = () => {
                 <Button
                   type="submit"
                   className="w-full h-12 gradient-primary text-primary-foreground font-semibold shadow-button hover:opacity-90 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isSubmitting || !form.formState.isValid}
+                  disabled={isSubmitting || !form.formState.isValid || !calendlyInfo}
                 >
                   {isSubmitting ? (
                     <>
