@@ -181,15 +181,7 @@ export type Database = {
           updated_at?: string | null
           watched_event_types?: Json | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "client_connections_ghl_location_id_fkey"
-            columns: ["ghl_location_id"]
-            isOneToOne: false
-            referencedRelation: "ghl_locations"
-            referencedColumns: ["location_id"]
-          },
-        ]
+        Relationships: []
       }
       ghl_locations: {
         Row: {
