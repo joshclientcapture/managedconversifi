@@ -6,13 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, calendly-webhook-signature',
 };
 
-async function verifyWebhookSignature(payload: string, signature: string | null, signingKey: string | null | undefined): Promise<boolean> {
+// Verify Calendly webhook signature per https://developer.calendly.com/api-docs/4c305798a61d3-webhook-signatures
+async function verifyWebhookSignature(
+  payload: string,
+  signature: string | null,
+  signingKey: string | null | undefined
+): Promise<boolean> {
   if (!signingKey || !signature) {
     console.warn('Webhook signature verification skipped - no signing key or signature');
     return true;
   }
 
   try {
+    // Calendly signature format: t=timestamp,v1=signature
     const parts = signature.split(',');
     const tPart = parts.find(p => p.startsWith('t='));
     const v1Part = parts.find(p => p.startsWith('v1='));
@@ -22,9 +28,19 @@ async function verifyWebhookSignature(payload: string, signature: string | null,
       return false;
     }
 
-    const t = tPart.split('=')[1];
-    const v1 = v1Part.split('=')[1];
-    const signedPayload = `${t}.${payload}`;
+    const timestamp = tPart.split('=')[1];
+    const expectedSignature = v1Part.split('=')[1];
+    
+    // Check timestamp is within 3 minutes to prevent replay attacks
+    const currentTime = Math.floor(Date.now() / 1000);
+    const webhookTime = parseInt(timestamp);
+    if (Math.abs(currentTime - webhookTime) > 180) {
+      console.error('Webhook timestamp too old:', currentTime - webhookTime, 'seconds');
+      return false;
+    }
+    
+    // Create the signed payload: timestamp.payload
+    const signedPayload = `${timestamp}.${payload}`;
     
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
@@ -36,11 +52,11 @@ async function verifyWebhookSignature(payload: string, signature: string | null,
     );
     
     const signatureBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(signedPayload));
-    const expectedSignature = Array.from(new Uint8Array(signatureBuffer))
+    const computedSignature = Array.from(new Uint8Array(signatureBuffer))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
 
-    return expectedSignature === v1;
+    return computedSignature === expectedSignature;
   } catch (error) {
     console.error('Signature verification error:', error);
     return false;
@@ -68,8 +84,9 @@ serve(async (req) => {
     }
 
     const payload = JSON.parse(rawBody);
-    const eventType = payload.event;
+    const eventType = payload.event; // "invitee.created" or "invitee.canceled"
     console.log('Received Calendly webhook:', eventType);
+    console.log('Full payload:', JSON.stringify(payload, null, 2));
 
     // Handle both created and canceled events
     if (eventType !== 'invitee.created' && eventType !== 'invitee.canceled') {
@@ -85,23 +102,81 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Extract event data
-    const invitee = payload.payload.invitee || payload.payload;
-    const scheduledEvent = payload.payload.scheduled_event || payload.payload.event;
+    // =====================================================
+    // PARSE WEBHOOK PAYLOAD PER CALENDLY API DOCUMENTATION
+    // https://developer.calendly.com/api-docs/1da466e7fbc1b-get-sample-webhook-data
+    // =====================================================
+    // Structure: { event: "invitee.created", payload: { ...invitee data, scheduled_event: {...} } }
+    // The invitee data is DIRECTLY in payload.payload (not payload.payload.invitee)
+    // =====================================================
+
+    const inviteeData = payload.payload;
+    const scheduledEvent = inviteeData?.scheduled_event;
+    
+    // Event type URI for filtering (e.g., https://api.calendly.com/event_types/XXXX)
     const eventTypeUri = scheduledEvent?.event_type;
+    
+    // Get user URI from event_memberships for client matching
     const userUri = scheduledEvent?.event_memberships?.[0]?.user;
 
-    const inviteeName = invitee.name;
-    const inviteeEmail = invitee.email;
-    const inviteePhone = invitee.questions_and_answers?.find(
-      (q: { question: string; answer: string }) => q.question.toLowerCase().includes('phone')
-    )?.answer || null;
-    const eventTime = scheduledEvent?.start_time;
-    const eventName = scheduledEvent?.name;
-    const eventUri = scheduledEvent?.uri;
-    const inviteeUri = invitee.uri;
+    // Extract invitee details
+    const inviteeName = inviteeData?.name || 
+      `${inviteeData?.first_name || ''} ${inviteeData?.last_name || ''}`.trim() || 
+      'Unknown';
+    const inviteeEmail = inviteeData?.email || null;
+    const inviteeUri = inviteeData?.uri || null;
+    const inviteeTimezone = inviteeData?.timezone || null;
+    
+    // Action URLs
+    const rescheduleUrl = inviteeData?.reschedule_url || null;
+    const cancelUrl = inviteeData?.cancel_url || null;
+    
+    // Reschedule detection
+    const isRescheduled = inviteeData?.rescheduled === true;
+    const oldInviteeUri = inviteeData?.old_invitee || null;
+    
+    // Extract phone from questions_and_answers or text_reminder_number
+    const questionsAndAnswers = inviteeData?.questions_and_answers || [];
+    const phoneFromQA = questionsAndAnswers.find(
+      (q: { question: string; answer: string }) => 
+        q.question?.toLowerCase().includes('phone') || 
+        q.question?.toLowerCase().includes('number') ||
+        q.question?.toLowerCase().includes('mobile')
+    )?.answer;
+    const inviteePhone = phoneFromQA || inviteeData?.text_reminder_number || null;
+    
+    // Extract scheduled event details
+    const eventTime = scheduledEvent?.start_time || null;
+    const eventEndTime = scheduledEvent?.end_time || null;
+    const eventName = scheduledEvent?.name || 'Calendly Event';
+    const eventUri = scheduledEvent?.uri || null;
+    
+    // Location info
+    const eventLocation = scheduledEvent?.location;
+    const locationDisplay = eventLocation?.location || eventLocation?.type || 'Virtual';
+    
+    // Extract calendly_event_id from URI (last segment)
+    // e.g., https://api.calendly.com/scheduled_events/GBGBDCAADAEDCRZ2 -> GBGBDCAADAEDCRZ2
+    const calendlyEventId = eventUri?.split('/').pop() || null;
 
-    console.log(`Processing ${eventType}: ${inviteeName} (${inviteeEmail}) for ${eventName}`);
+    // Cancellation info (for invitee.canceled events)
+    const cancellation = inviteeData?.cancellation;
+    const cancelReason = cancellation?.reason || 'No reason provided';
+    const canceledBy = cancellation?.canceled_by || cancellation?.canceler_type || 'Unknown';
+
+    console.log('Parsed webhook data:', {
+      eventType,
+      inviteeName,
+      inviteeEmail,
+      inviteePhone,
+      eventName,
+      eventTime,
+      eventTypeUri,
+      userUri,
+      calendlyEventId,
+      isRescheduled,
+      locationDisplay
+    });
 
     // Find matching client connection by user URI
     const { data: connections, error: connError } = await supabase
@@ -117,11 +192,21 @@ serve(async (req) => {
       );
     }
 
-    // Match connection by Calendly user URI
-    const connection = connections?.find(c => {
+    // Match connection by Calendly user URI (try exact match first, then partial)
+    let connection = connections?.find(c => {
       if (!userUri || !c.calendly_user_uri) return false;
-      return userUri.includes(c.calendly_user_uri.split('/').pop() || '');
+      return c.calendly_user_uri === userUri;
     });
+    
+    // Fallback: partial match by user ID
+    if (!connection) {
+      connection = connections?.find(c => {
+        if (!userUri || !c.calendly_user_uri) return false;
+        const userIdFromWebhook = userUri.split('/').pop();
+        const userIdFromDb = c.calendly_user_uri.split('/').pop();
+        return userIdFromWebhook && userIdFromDb && userIdFromWebhook === userIdFromDb;
+      });
+    }
 
     if (!connection) {
       console.error('No matching client connection found for user:', userUri);
@@ -131,39 +216,62 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Matched to client: ${connection.client_name} (${connection.access_token})`);
+    console.log(`Matched to client: ${connection.client_name} (token: ${connection.access_token})`);
 
     // Check if this event type is in the watched list
     if (connection.watched_event_types && Array.isArray(connection.watched_event_types)) {
       const watchedTypes = connection.watched_event_types as string[];
-      if (watchedTypes.length > 0 && !watchedTypes.includes(eventTypeUri)) {
-        console.log(`Event type ${eventTypeUri} not in watched list, skipping`);
+      // Only filter if there are specific types selected (non-empty array)
+      if (watchedTypes.length > 0 && eventTypeUri && !watchedTypes.includes(eventTypeUri)) {
+        console.log(`Event type ${eventTypeUri} not in watched list:`, watchedTypes);
         return new Response(
-          JSON.stringify({ message: 'Event type not watched' }),
+          JSON.stringify({ message: 'Event type not watched, skipping' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
     }
 
-    // Handle canceled events
+    // Format event time for display
+    const formattedTime = eventTime 
+      ? new Date(eventTime).toLocaleString('en-US', { 
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          timeZoneName: 'short'
+        })
+      : 'Time not specified';
+
+    const slackToken = Deno.env.get('SLACK_BOT_TOKEN');
+    const ghlApiKey = Deno.env.get('GHL_API_KEY');
+
+    // =====================================================
+    // HANDLE CANCELLATION (invitee.canceled)
+    // =====================================================
     if (eventType === 'invitee.canceled') {
       console.log('Processing cancellation...');
       
       // Update existing booking status
       const { error: updateError } = await supabase
         .from('bookings')
-        .update({ event_status: 'canceled' })
+        .update({ 
+          event_status: 'canceled',
+          raw_payload: payload 
+        })
         .eq('calendly_invitee_uri', inviteeUri);
 
       if (updateError) {
         console.warn('Error updating booking status:', updateError);
+      } else {
+        console.log('Booking status updated to canceled');
       }
 
       // Send cancellation to Slack
-      const slackToken = Deno.env.get('SLACK_BOT_TOKEN');
       if (slackToken && connection.slack_channel_id) {
         try {
-          await fetch('https://slack.com/api/chat.postMessage', {
+          const slackResponse = await fetch('https://slack.com/api/chat.postMessage', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${slackToken}`,
@@ -175,36 +283,63 @@ serve(async (req) => {
               blocks: [
                 {
                   type: 'header',
-                  text: { type: 'plain_text', text: '❌ Booking Canceled', emoji: true }
+                  text: { type: 'plain_text', text: '❌ Calendly Booking Canceled', emoji: true }
                 },
                 {
                   type: 'section',
                   fields: [
                     { type: 'mrkdwn', text: `*Client:*\n${connection.client_name}` },
                     { type: 'mrkdwn', text: `*Contact:*\n${inviteeName}` },
-                    { type: 'mrkdwn', text: `*Email:*\n${inviteeEmail}` },
-                    { type: 'mrkdwn', text: `*Event:*\n${eventName}` }
+                    { type: 'mrkdwn', text: `*Email:*\n${inviteeEmail || 'Not provided'}` },
+                    { type: 'mrkdwn', text: `*Event:*\n${eventName}` },
+                    { type: 'mrkdwn', text: `*Was Scheduled:*\n${formattedTime}` },
+                    { type: 'mrkdwn', text: `*Canceled By:*\n${canceledBy}` },
+                    { type: 'mrkdwn', text: `*Reason:*\n${cancelReason}` }
+                  ]
+                },
+                {
+                  type: 'context',
+                  elements: [
+                    { type: 'mrkdwn', text: `📋 Access Token: \`${connection.access_token}\` | Event ID: \`${calendlyEventId}\`` }
                   ]
                 }
               ]
             })
           });
+          
+          const slackResult = await slackResponse.json();
+          console.log('Slack cancellation notification:', slackResult.ok ? 'sent' : slackResult.error);
         } catch (slackError) {
           console.warn('Failed to send cancellation to Slack:', slackError);
         }
       }
 
       return new Response(
-        JSON.stringify({ success: true, message: 'Cancellation processed' }),
+        JSON.stringify({ success: true, message: 'Cancellation processed', client: connection.client_name }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Handle new bookings (invitee.created)
+    // =====================================================
+    // HANDLE NEW/RESCHEDULED BOOKING (invitee.created)
+    // =====================================================
     
+    // If this is a reschedule, mark the old booking as rescheduled
+    if (isRescheduled && oldInviteeUri) {
+      const { error: rescheduleError } = await supabase
+        .from('bookings')
+        .update({ event_status: 'rescheduled' })
+        .eq('calendly_invitee_uri', oldInviteeUri);
+      
+      if (rescheduleError) {
+        console.warn('Error updating old booking as rescheduled:', rescheduleError);
+      } else {
+        console.log('Previous booking marked as rescheduled');
+      }
+    }
+
     // 1. Create GHL contact
-    const ghlApiKey = Deno.env.get('GHL_API_KEY');
-    if (ghlApiKey) {
+    if (ghlApiKey && connection.ghl_location_id) {
       try {
         console.log('Creating GHL contact...');
         const ghlResponse = await fetch('https://services.leadconnectorhq.com/contacts/', {
@@ -219,12 +354,15 @@ serve(async (req) => {
             email: inviteeEmail,
             name: inviteeName,
             phone: inviteePhone,
-            tags: ['calendly-booking', connection.client_name],
+            tags: ['calendly-booking', connection.client_name, eventName].filter(Boolean),
             customFields: [
               { key: 'calendly_event_type', value: eventName },
-              { key: 'calendly_event_time', value: eventTime },
-              { key: 'access_token', value: connection.access_token }
-            ]
+              { key: 'calendly_event_time', value: eventTime || '' },
+              { key: 'calendly_event_id', value: calendlyEventId || '' },
+              { key: 'calendly_timezone', value: inviteeTimezone || '' },
+              { key: 'access_token', value: connection.access_token || '' }
+            ],
+            source: 'Calendly'
           })
         });
 
@@ -239,23 +377,70 @@ serve(async (req) => {
       }
     }
 
-    // 2. Send Slack notification
-    const slackToken = Deno.env.get('SLACK_BOT_TOKEN');
+    // 2. Send Slack notification with rich formatting
     if (slackToken && connection.slack_channel_id) {
       try {
         console.log('Sending Slack notification...');
-        const formattedTime = eventTime 
-          ? new Date(eventTime).toLocaleString('en-US', { 
-              weekday: 'short', 
-              month: 'short', 
-              day: 'numeric', 
-              hour: 'numeric', 
-              minute: '2-digit',
-              timeZoneName: 'short'
-            })
-          : 'TBD';
+        
+        // Build action buttons if URLs exist
+        const actionButtons: any[] = [];
+        if (rescheduleUrl) {
+          actionButtons.push({
+            type: 'button',
+            text: { type: 'plain_text', text: '📅 Reschedule', emoji: true },
+            url: rescheduleUrl,
+            style: 'primary'
+          });
+        }
+        if (cancelUrl) {
+          actionButtons.push({
+            type: 'button',
+            text: { type: 'plain_text', text: '❌ Cancel', emoji: true },
+            url: cancelUrl
+          });
+        }
 
-        await fetch('https://slack.com/api/chat.postMessage', {
+        const blocks: any[] = [
+          {
+            type: 'header',
+            text: { 
+              type: 'plain_text', 
+              text: isRescheduled ? '🔄 Calendly Booking Rescheduled' : '🎯 New Calendly Booking', 
+              emoji: true 
+            }
+          },
+          {
+            type: 'section',
+            fields: [
+              { type: 'mrkdwn', text: `*Client:*\n${connection.client_name}` },
+              { type: 'mrkdwn', text: `*Contact:*\n${inviteeName}` },
+              { type: 'mrkdwn', text: `*Email:*\n${inviteeEmail || 'Not provided'}` },
+              { type: 'mrkdwn', text: `*Phone:*\n${inviteePhone || 'Not provided'}` },
+              { type: 'mrkdwn', text: `*Event:*\n${eventName}` },
+              { type: 'mrkdwn', text: `*Time:*\n${formattedTime}` },
+              { type: 'mrkdwn', text: `*Timezone:*\n${inviteeTimezone || 'N/A'}` },
+              { type: 'mrkdwn', text: `*Location:*\n${locationDisplay}` }
+            ]
+          }
+        ];
+
+        // Add action buttons if any
+        if (actionButtons.length > 0) {
+          blocks.push({
+            type: 'actions',
+            elements: actionButtons
+          });
+        }
+
+        // Add context footer
+        blocks.push({
+          type: 'context',
+          elements: [
+            { type: 'mrkdwn', text: `📋 Access Token: \`${connection.access_token}\` | Event ID: \`${calendlyEventId}\`` }
+          ]
+        });
+
+        const slackResponse = await fetch('https://slack.com/api/chat.postMessage', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${slackToken}`,
@@ -263,39 +448,19 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             channel: connection.slack_channel_id,
-            text: `🎯 New booking for ${connection.client_name}`,
-            blocks: [
-              {
-                type: 'header',
-                text: { type: 'plain_text', text: '🎯 New Calendly Booking', emoji: true }
-              },
-              {
-                type: 'section',
-                fields: [
-                  { type: 'mrkdwn', text: `*Client:*\n${connection.client_name}` },
-                  { type: 'mrkdwn', text: `*Contact:*\n${inviteeName}` },
-                  { type: 'mrkdwn', text: `*Email:*\n${inviteeEmail}` },
-                  { type: 'mrkdwn', text: `*Phone:*\n${inviteePhone || 'Not provided'}` },
-                  { type: 'mrkdwn', text: `*Event:*\n${eventName}` },
-                  { type: 'mrkdwn', text: `*Time:*\n${formattedTime}` }
-                ]
-              },
-              {
-                type: 'context',
-                elements: [
-                  { type: 'mrkdwn', text: `📋 Access Token: \`${connection.access_token}\`` }
-                ]
-              }
-            ]
+            text: `${isRescheduled ? '🔄 Rescheduled' : '🎯 New'} booking for ${connection.client_name}: ${inviteeName} - ${eventName}`,
+            blocks
           })
         });
-        console.log('Slack notification sent');
+        
+        const slackResult = await slackResponse.json();
+        console.log('Slack notification:', slackResult.ok ? 'sent' : slackResult.error);
       } catch (slackError) {
         console.warn('Failed to send Slack notification:', slackError);
       }
     }
 
-    // 3. Log booking to database with access_token
+    // 3. Log booking to database
     console.log('Logging booking to database...');
     const { error: bookingError } = await supabase.from('bookings').insert({
       client_connection_id: connection.id,
@@ -308,6 +473,7 @@ serve(async (req) => {
       event_time: eventTime,
       calendly_event_uri: eventUri,
       calendly_invitee_uri: inviteeUri,
+      calendly_event_id: calendlyEventId,
       event_status: 'scheduled',
       raw_payload: payload
     });
@@ -319,7 +485,11 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: 'Webhook processed' }),
+      JSON.stringify({ 
+        success: true, 
+        message: `Webhook processed: ${isRescheduled ? 'rescheduled' : 'new booking'}`,
+        client: connection.client_name 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

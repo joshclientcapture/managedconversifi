@@ -461,7 +461,15 @@ const IntegrationForm = () => {
                         </div>
                       </FormControl>
                       <FormDescription className="text-xs text-muted-foreground">
-                        Get this from Calendly → Integrations → API & Webhooks
+                        Get this from{' '}
+                        <a 
+                          href="https://calendly.com/integrations/api_webhooks" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Calendly → Integrations → API & Webhooks
+                        </a>
                       </FormDescription>
                       {validatingCalendly && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
