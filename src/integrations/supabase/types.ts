@@ -24,9 +24,11 @@ export type Database = {
           contact_name: string | null
           contact_phone: string | null
           created_at: string | null
+          event_status: string | null
           event_time: string | null
           event_type: string | null
           event_type_name: string | null
+          event_type_uri: string | null
           id: string
           raw_payload: Json | null
         }
@@ -39,9 +41,11 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          event_status?: string | null
           event_time?: string | null
           event_type?: string | null
           event_type_name?: string | null
+          event_type_uri?: string | null
           id?: string
           raw_payload?: Json | null
         }
@@ -54,9 +58,11 @@ export type Database = {
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          event_status?: string | null
           event_time?: string | null
           event_type?: string | null
           event_type_name?: string | null
+          event_type_uri?: string | null
           id?: string
           raw_payload?: Json | null
         }
@@ -72,49 +78,52 @@ export type Database = {
       }
       client_connections: {
         Row: {
-          calendly_org_uri: string | null
+          calendly_org_uri: string
           calendly_token: string
-          calendly_user_uri: string | null
+          calendly_user_uri: string
           calendly_webhook_id: string | null
           client_name: string
           created_at: string | null
           ghl_location_id: string
-          ghl_location_name: string | null
+          ghl_location_name: string
           id: string
           is_active: boolean | null
           slack_channel_id: string
           slack_channel_name: string | null
           updated_at: string | null
+          watched_event_types: Json | null
         }
         Insert: {
-          calendly_org_uri?: string | null
+          calendly_org_uri: string
           calendly_token: string
-          calendly_user_uri?: string | null
+          calendly_user_uri: string
           calendly_webhook_id?: string | null
           client_name: string
           created_at?: string | null
           ghl_location_id: string
-          ghl_location_name?: string | null
+          ghl_location_name: string
           id?: string
           is_active?: boolean | null
           slack_channel_id: string
           slack_channel_name?: string | null
           updated_at?: string | null
+          watched_event_types?: Json | null
         }
         Update: {
-          calendly_org_uri?: string | null
+          calendly_org_uri?: string
           calendly_token?: string
-          calendly_user_uri?: string | null
+          calendly_user_uri?: string
           calendly_webhook_id?: string | null
           client_name?: string
           created_at?: string | null
           ghl_location_id?: string
-          ghl_location_name?: string | null
+          ghl_location_name?: string
           id?: string
           is_active?: boolean | null
           slack_channel_id?: string
           slack_channel_name?: string | null
           updated_at?: string | null
+          watched_event_types?: Json | null
         }
         Relationships: [
           {
