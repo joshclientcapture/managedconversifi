@@ -32,6 +32,7 @@ const formSchema = z.object({
   calendlyToken: z.string().min(1, "Calendly API Token is required"),
   ghlLocation: z.string().min(1, "Please select a GHL Location"),
   slackChannel: z.string().min(1, "Please select a Slack channel"),
+  conversifiWebhook: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -108,6 +109,7 @@ const IntegrationForm = () => {
       calendlyToken: "",
       ghlLocation: "",
       slackChannel: "",
+      conversifiWebhook: "",
     },
     mode: "onChange",
   });
@@ -553,18 +555,29 @@ const IntegrationForm = () => {
                 )}
 
                 {/* Conversifi Webhook Section */}
-                <div className="rounded-xl border bg-muted/30 p-4">
-                  <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-                    <Link2 className="h-4 w-4" />
-                    Conversifi Webhook
-                  </h3>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Use this webhook URL in Conversifi to receive booking notifications
-                  </p>
-                  <div className="bg-background border rounded-md p-2 font-mono text-xs text-foreground break-all">
-                    https://ifnxhardrbzrtoghhfcr.supabase.co/functions/v1/conversifi-webhook
-                  </div>
-                </div>
+                <FormField
+                  control={form.control}
+                  name="conversifiWebhook"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground font-medium">
+                        Conversifi Webhook URL
+                        <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="https://api.conversifi.com/stats/..."
+                          className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all font-mono text-sm"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        Paste your Conversifi stats endpoint URL to fetch updated stats periodically
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}
