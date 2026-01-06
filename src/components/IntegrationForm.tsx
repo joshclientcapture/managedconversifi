@@ -32,7 +32,7 @@ const formSchema = z.object({
   calendlyToken: z.string().min(1, "Calendly API Token is required"),
   ghlLocation: z.string().min(1, "Please select a GHL Location"),
   slackChannel: z.string().min(1, "Please select a Slack channel"),
-  conversifiWebhook: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  conversifiWebhook: z.string().url("Please enter a valid URL"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -41,6 +41,7 @@ type ConnectionStatus = "idle" | "connecting" | "connected" | "error";
 
 interface ServiceStatuses {
   calendly: ConnectionStatus;
+  conversifi: ConnectionStatus;
   ghl: ConnectionStatus;
   slack: ConnectionStatus;
   database: ConnectionStatus;
@@ -97,6 +98,7 @@ const IntegrationForm = () => {
   const [loadingEventTypes, setLoadingEventTypes] = useState(false);
   const [statuses, setStatuses] = useState<ServiceStatuses>({
     calendly: "idle",
+    conversifi: "idle",
     ghl: "idle",
     slack: "idle",
     database: "idle",
@@ -255,7 +257,8 @@ const IntegrationForm = () => {
           ghl_location_id: values.ghlLocation,
           ghl_location_name: selectedLocation?.locationName || '',
           slack_channel_id: values.slackChannel,
-          slack_channel_name: selectedChannel?.name || ''
+          slack_channel_name: selectedChannel?.name || '',
+          conversifi_webhook_url: values.conversifiWebhook
         }
       });
 
@@ -265,6 +268,8 @@ const IntegrationForm = () => {
         throw new Error(data?.error || 'Connection failed');
       }
 
+      setStatuses(prev => ({ ...prev, conversifi: "connected" }));
+      await new Promise(r => setTimeout(r, 300));
       setStatuses(prev => ({ ...prev, ghl: "connected" }));
       await new Promise(r => setTimeout(r, 300));
       setStatuses(prev => ({ ...prev, slack: "connected" }));
@@ -305,6 +310,7 @@ const IntegrationForm = () => {
     setSelectedEventTypes([]);
     setStatuses({
       calendly: "idle",
+      conversifi: "idle",
       ghl: "idle",
       slack: "idle",
       database: "idle",
@@ -354,6 +360,7 @@ const IntegrationForm = () => {
             <h3 className="text-sm font-semibold text-foreground mb-3">Service Status</h3>
             <div className="grid grid-cols-2 gap-x-6 gap-y-1">
               <StatusIndicator label="Calendly" status={statuses.calendly} />
+              <StatusIndicator label="Conversifi" status={statuses.conversifi} />
               <StatusIndicator label="GHL" status={statuses.ghl} />
               <StatusIndicator label="Slack" status={statuses.slack} />
               <StatusIndicator label="Database" status={statuses.database} />
@@ -562,11 +569,10 @@ const IntegrationForm = () => {
                     <FormItem>
                       <FormLabel className="text-foreground font-medium">
                         Conversifi Webhook URL
-                        <span className="text-muted-foreground font-normal ml-1">(optional)</span>
                       </FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="https://api.conversifi.com/stats/..."
+                          placeholder="https://server.conversifi.io/functions/v1/get-campaign-stats?account_id=ACC1,ACC2"
                           className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all font-mono text-sm"
                           {...field}
                         />

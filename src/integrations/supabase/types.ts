@@ -76,6 +76,50 @@ export type Database = {
           },
         ]
       }
+      campaign_stats: {
+        Row: {
+          campaign_data: Json | null
+          client_connection_id: string
+          connections_made: number | null
+          created_at: string | null
+          date: string
+          id: string
+          meetings_booked: number | null
+          messages_sent: number | null
+          replies_received: number | null
+        }
+        Insert: {
+          campaign_data?: Json | null
+          client_connection_id: string
+          connections_made?: number | null
+          created_at?: string | null
+          date: string
+          id?: string
+          meetings_booked?: number | null
+          messages_sent?: number | null
+          replies_received?: number | null
+        }
+        Update: {
+          campaign_data?: Json | null
+          client_connection_id?: string
+          connections_made?: number | null
+          created_at?: string | null
+          date?: string
+          id?: string
+          meetings_booked?: number | null
+          messages_sent?: number | null
+          replies_received?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_stats_client_connection_id_fkey"
+            columns: ["client_connection_id"]
+            isOneToOne: false
+            referencedRelation: "client_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_connections: {
         Row: {
           calendly_org_uri: string
@@ -83,6 +127,7 @@ export type Database = {
           calendly_user_uri: string
           calendly_webhook_id: string | null
           client_name: string
+          conversifi_webhook_url: string | null
           created_at: string | null
           ghl_location_id: string
           ghl_location_name: string
@@ -99,6 +144,7 @@ export type Database = {
           calendly_user_uri: string
           calendly_webhook_id?: string | null
           client_name: string
+          conversifi_webhook_url?: string | null
           created_at?: string | null
           ghl_location_id: string
           ghl_location_name: string
@@ -115,6 +161,7 @@ export type Database = {
           calendly_user_uri?: string
           calendly_webhook_id?: string | null
           client_name?: string
+          conversifi_webhook_url?: string | null
           created_at?: string | null
           ghl_location_id?: string
           ghl_location_name?: string
