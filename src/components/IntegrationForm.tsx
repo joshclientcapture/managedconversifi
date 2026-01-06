@@ -44,7 +44,6 @@ interface ServiceStatuses {
   conversifi: ConnectionStatus;
   ghl: ConnectionStatus;
   slack: ConnectionStatus;
-  database: ConnectionStatus;
 }
 
 interface GhlLocation {
@@ -96,12 +95,13 @@ const IntegrationForm = () => {
   const [eventTypes, setEventTypes] = useState<CalendlyEventType[]>([]);
   const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
   const [loadingEventTypes, setLoadingEventTypes] = useState(false);
+  const [validatingConversifi, setValidatingConversifi] = useState(false);
+  const [conversifiError, setConversifiError] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<ServiceStatuses>({
     calendly: "idle",
     conversifi: "idle",
     ghl: "idle",
     slack: "idle",
-    database: "idle",
   });
 
   const form = useForm<FormValues>({
@@ -217,6 +217,48 @@ const IntegrationForm = () => {
     }
   };
 
+  // Validate Conversifi webhook URL on blur
+  const validateConversifiUrl = async (url: string) => {
+    if (!url || url.length < 10) {
+      setConversifiError(null);
+      setStatuses(prev => ({ ...prev, conversifi: "idle" }));
+      return;
+    }
+
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      setConversifiError('Invalid URL format');
+      setStatuses(prev => ({ ...prev, conversifi: "error" }));
+      return;
+    }
+
+    setValidatingConversifi(true);
+    setConversifiError(null);
+    setStatuses(prev => ({ ...prev, conversifi: "connecting" }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-conversifi', {
+        body: { webhook_url: url }
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to validate URL');
+      }
+
+      setStatuses(prev => ({ ...prev, conversifi: "connected" }));
+    } catch (error) {
+      console.error('Conversifi validation error:', error);
+      setConversifiError(error instanceof Error ? error.message : 'Failed to validate Conversifi URL');
+      setStatuses(prev => ({ ...prev, conversifi: "error" }));
+    } finally {
+      setValidatingConversifi(false);
+    }
+  };
+
   const toggleEventType = (uri: string) => {
     setSelectedEventTypes(prev => 
       prev.includes(uri) 
@@ -268,13 +310,8 @@ const IntegrationForm = () => {
         throw new Error(data?.error || 'Connection failed');
       }
 
-      setStatuses(prev => ({ ...prev, conversifi: "connected" }));
-      await new Promise(r => setTimeout(r, 300));
-      setStatuses(prev => ({ ...prev, ghl: "connected" }));
-      await new Promise(r => setTimeout(r, 300));
-      setStatuses(prev => ({ ...prev, slack: "connected" }));
-      await new Promise(r => setTimeout(r, 300));
-      setStatuses(prev => ({ ...prev, database: "connected" }));
+      // Statuses are already set via selections and validation
+      // Just ensure they're all connected on successful submit
 
       setConnectionResult(data.connection);
       setConnectionSuccess(true);
@@ -294,7 +331,6 @@ const IntegrationForm = () => {
         ...prev,
         ghl: "error",
         slack: "error",
-        database: "error",
       }));
     } finally {
       setIsSubmitting(false);
@@ -313,7 +349,6 @@ const IntegrationForm = () => {
       conversifi: "idle",
       ghl: "idle",
       slack: "idle",
-      database: "idle",
     });
   };
 
@@ -363,7 +398,6 @@ const IntegrationForm = () => {
               <StatusIndicator label="Conversifi" status={statuses.conversifi} />
               <StatusIndicator label="GHL" status={statuses.ghl} />
               <StatusIndicator label="Slack" status={statuses.slack} />
-              <StatusIndicator label="Database" status={statuses.database} />
             </div>
           </div>
 
@@ -575,11 +609,33 @@ const IntegrationForm = () => {
                           placeholder="https://server.conversifi.io/functions/v1/get-campaign-stats?account_id=ACC1,ACC2"
                           className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all font-mono text-sm"
                           {...field}
+                          onBlur={(e) => {
+                            field.onBlur();
+                            validateConversifiUrl(e.target.value);
+                          }}
                         />
                       </FormControl>
                       <FormDescription className="text-xs text-muted-foreground">
                         Paste your Conversifi stats endpoint URL to fetch updated stats periodically
                       </FormDescription>
+                      {validatingConversifi && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Validating Conversifi URL...
+                        </p>
+                      )}
+                      {statuses.conversifi === "connected" && !validatingConversifi && (
+                        <p className="text-xs text-success flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Conversifi endpoint is live and returning data
+                        </p>
+                      )}
+                      {conversifiError && (
+                        <p className="text-xs text-destructive flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {conversifiError}
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -604,7 +660,10 @@ const IntegrationForm = () => {
                           Refresh
                         </Button>
                       </div>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(value) => {
+                        field.onChange(value);
+                        setStatuses(prev => ({ ...prev, ghl: "connected" }));
+                      }} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
                             <SelectValue placeholder={loadingLocations ? "Loading locations..." : "Select GHL Location"} />
@@ -646,7 +705,10 @@ const IntegrationForm = () => {
                           Refresh
                         </Button>
                       </div>
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select onValueChange={(value) => {
+                        field.onChange(value);
+                        setStatuses(prev => ({ ...prev, slack: "connected" }));
+                      }} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
                             <SelectValue placeholder={loadingChannels ? "Loading channels..." : "Select Slack channel for notifications"} />

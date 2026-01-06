@@ -49,10 +49,13 @@ serve(async (req) => {
       try {
         console.log(`Fetching stats for ${connection.client_name} from ${connection.conversifi_webhook_url}`);
 
+        const apiKey = Deno.env.get('CONVERSIFI_API_KEY');
+        
         // Call Conversifi webhook URL with GET request
         const response = await fetch(connection.conversifi_webhook_url, {
           method: 'GET',
           headers: {
+            'X-API-Key': apiKey || '',
             'Content-Type': 'application/json'
           }
         });
