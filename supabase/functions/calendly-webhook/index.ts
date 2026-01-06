@@ -342,6 +342,12 @@ serve(async (req) => {
     if (ghlApiKey && connection.ghl_location_id) {
       try {
         console.log('Creating GHL contact...');
+        
+        // Split name into firstName and lastName for GHL API
+        const nameParts = (inviteeName || '').trim().split(' ');
+        const firstName = nameParts[0] || inviteeName || 'Unknown';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
         const ghlResponse = await fetch('https://services.leadconnectorhq.com/contacts/', {
           method: 'POST',
           headers: {
@@ -352,9 +358,10 @@ serve(async (req) => {
           body: JSON.stringify({
             locationId: connection.ghl_location_id,
             email: inviteeEmail,
-            name: inviteeName,
+            firstName: firstName,
+            lastName: lastName,
             phone: inviteePhone,
-            tags: ['calendly-booking', connection.client_name, eventName].filter(Boolean),
+            tags: ['calendly-booking', eventName].filter(Boolean),
             customFields: [
               { key: 'calendly_event_type', value: eventName },
               { key: 'calendly_event_time', value: eventTime || '' },

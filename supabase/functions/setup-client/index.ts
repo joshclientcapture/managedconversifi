@@ -6,17 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Generate a secure access token
-function generateAccessToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const segments = [8, 4, 4, 12];
-  return segments.map(len => 
-    Array.from(crypto.getRandomValues(new Uint8Array(len)))
-      .map(b => chars[b % chars.length])
-      .join('')
-  ).join('-');
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -24,7 +13,7 @@ serve(async (req) => {
 
   try {
     const { 
-      client_name, 
+      access_token,
       calendly_token, 
       calendly_user_uri,
       calendly_org_uri,
@@ -36,19 +25,17 @@ serve(async (req) => {
       conversifi_webhook_url
     } = await req.json();
 
-    console.log(`Setting up client: ${client_name}`);
+    console.log(`Setting up client with token: ${access_token?.substring(0, 8)}...`);
 
     // Validate required fields
-    if (!client_name || !calendly_token || !ghl_location_id || !slack_channel_id || !conversifi_webhook_url) {
+    if (!access_token || !calendly_token || !ghl_location_id || !slack_channel_id || !conversifi_webhook_url) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Generate unique access token for this client
-    const accessToken = generateAccessToken();
-    console.log(`Generated access token: ${accessToken}`);
+    const accessToken = access_token;
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -125,7 +112,7 @@ serve(async (req) => {
       .from('client_connections')
       .insert({
         access_token: accessToken,
-        client_name,
+        client_name: `Client-${accessToken.substring(0, 8)}`,
         calendly_token,
         calendly_webhook_id: webhookId,
         calendly_user_uri: userUri,
@@ -166,7 +153,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             channel: slack_channel_id,
-            text: `🎉 New client integration activated: ${client_name}`,
+            text: `🎉 New client integration activated with token: ${accessToken.substring(0, 8)}...`,
             blocks: [
               {
                 type: 'header',
@@ -179,7 +166,6 @@ serve(async (req) => {
               {
                 type: 'section',
                 fields: [
-                  { type: 'mrkdwn', text: `*Client:*\n${client_name}` },
                   { type: 'mrkdwn', text: `*Access Token:*\n\`${accessToken}\`` },
                   { type: 'mrkdwn', text: `*Calendly Events:*\n${watchedCount === 'all' ? 'All events' : `${watchedCount} selected`}` },
                   { type: 'mrkdwn', text: `*GHL Location:*\n${ghl_location_name}` }

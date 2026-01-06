@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff, Hash, RefreshCw, Calendar, X } from "lucide-react";
+import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff, Hash, RefreshCw, Calendar, X, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -27,8 +27,18 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import StatusIndicator from "./StatusIndicator";
 import { supabase } from "@/integrations/supabase/client";
 
+// Generate access token on frontend
+function generateAccessToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const segments = [8, 4, 4, 12];
+  return segments.map(len => {
+    const array = new Uint8Array(len);
+    crypto.getRandomValues(array);
+    return Array.from(array).map(b => chars[b % chars.length]).join('');
+  }).join('-');
+}
+
 const formSchema = z.object({
-  clientName: z.string().min(1, "Client name is required").max(100, "Client name must be less than 100 characters"),
   calendlyToken: z.string().min(1, "Calendly API Token is required"),
   ghlLocation: z.string().min(1, "Please select a GHL Location"),
   slackChannel: z.string().min(1, "Please select a Slack channel"),
@@ -104,11 +114,25 @@ const IntegrationForm = () => {
     ghl: "idle",
     slack: "idle",
   });
+  
+  // Generate access token on mount
+  const [accessToken, setAccessToken] = useState<string>(() => generateAccessToken());
+  const [copied, setCopied] = useState(false);
+
+  const copyAccessToken = useCallback(() => {
+    navigator.clipboard.writeText(accessToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [accessToken]);
+
+  const regenerateToken = useCallback(() => {
+    setAccessToken(generateAccessToken());
+    setCopied(false);
+  }, []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      clientName: "",
       calendlyToken: "",
       ghlLocation: "",
       slackChannel: "",
@@ -292,7 +316,7 @@ const IntegrationForm = () => {
 
       const { data, error } = await supabase.functions.invoke('setup-client', {
         body: {
-          client_name: values.clientName,
+          access_token: accessToken,
           calendly_token: values.calendlyToken,
           calendly_user_uri: calendlyInfo.userUri,
           calendly_org_uri: calendlyInfo.orgUri,
@@ -320,6 +344,8 @@ const IntegrationForm = () => {
       setCalendlyInfo(null);
       setEventTypes([]);
       setSelectedEventTypes([]);
+      // Generate new token for next integration
+      setAccessToken(generateAccessToken());
 
       setTimeout(() => {
         resetForm();
@@ -377,7 +403,6 @@ const IntegrationForm = () => {
               <CheckCircle2 className="h-5 w-5 text-success" />
               <AlertTitle className="text-success font-semibold">✅ Integration Active</AlertTitle>
               <AlertDescription className="text-success/80 space-y-3">
-                <p><strong>Client:</strong> {connectionResult.client_name}</p>
                 <div className="bg-background/50 border border-success/20 rounded-md p-2">
                   <p className="text-xs text-muted-foreground mb-1">Access Token (save this for dashboard access):</p>
                   <code className="text-sm font-mono text-foreground break-all">{connectionResult.access_token}</code>
@@ -409,23 +434,43 @@ const IntegrationForm = () => {
           {!connectionSuccess && (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                <FormField
-                  control={form.control}
-                  name="clientName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-foreground font-medium">Client Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter client name"
-                          className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Access Token Display */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground">Access Token</label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={regenerateToken}
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Regenerate
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-11 px-3 bg-muted/50 border border-input rounded-md flex items-center">
+                      <code className="text-sm font-mono text-foreground break-all">{accessToken}</code>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="h-11 w-11 shrink-0"
+                      onClick={copyAccessToken}
+                    >
+                      {copied ? (
+                        <Check className="h-4 w-4 text-success" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Save this token! The client will use it to access their dashboard later.
+                  </p>
+                </div>
 
                 <FormField
                   control={form.control}
