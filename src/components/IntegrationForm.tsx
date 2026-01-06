@@ -75,6 +75,7 @@ interface CalendlyEventType {
 
 interface ConnectionResult {
   id: string;
+  access_token: string;
   client_name: string;
   is_active: boolean;
 }
@@ -375,9 +376,13 @@ const IntegrationForm = () => {
             <Alert className="border-success/30 bg-success/10 animate-fade-in-up">
               <CheckCircle2 className="h-5 w-5 text-success" />
               <AlertTitle className="text-success font-semibold">✅ Integration Active</AlertTitle>
-              <AlertDescription className="text-success/80 space-y-2">
+              <AlertDescription className="text-success/80 space-y-3">
                 <p><strong>Client:</strong> {connectionResult.client_name}</p>
-                <p><strong>Connected Services:</strong> Calendly, GHL, Slack, Database</p>
+                <div className="bg-background/50 border border-success/20 rounded-md p-2">
+                  <p className="text-xs text-muted-foreground mb-1">Access Token (save this for dashboard access):</p>
+                  <code className="text-sm font-mono text-foreground break-all">{connectionResult.access_token}</code>
+                </div>
+                <p><strong>Connected Services:</strong> Calendly, Conversifi, GHL, Slack</p>
                 <p className="text-xs mt-2">Form will reset in 5 seconds...</p>
               </AlertDescription>
             </Alert>

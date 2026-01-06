@@ -9,7 +9,7 @@ const corsHeaders = {
 async function verifyWebhookSignature(payload: string, signature: string | null, signingKey: string | null | undefined): Promise<boolean> {
   if (!signingKey || !signature) {
     console.warn('Webhook signature verification skipped - no signing key or signature');
-    return true; // Skip verification if no signing key configured
+    return true;
   }
 
   try {
@@ -48,7 +48,6 @@ async function verifyWebhookSignature(payload: string, signature: string | null,
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -69,21 +68,28 @@ serve(async (req) => {
     }
 
     const payload = JSON.parse(rawBody);
-    console.log('Received Calendly webhook:', payload.event);
+    const eventType = payload.event;
+    console.log('Received Calendly webhook:', eventType);
 
-    // Only handle invitee.created events
-    if (payload.event !== 'invitee.created') {
-      console.log('Ignoring non-invitee.created event:', payload.event);
+    // Handle both created and canceled events
+    if (eventType !== 'invitee.created' && eventType !== 'invitee.canceled') {
+      console.log('Ignoring event type:', eventType);
       return new Response(
         JSON.stringify({ message: 'Event ignored' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // Extract event data
-    const invitee = payload.payload.invitee;
-    const event = payload.payload.event;
-    const scheduledEvent = payload.payload.scheduled_event;
+    const invitee = payload.payload.invitee || payload.payload;
+    const scheduledEvent = payload.payload.scheduled_event || payload.payload.event;
+    const eventTypeUri = scheduledEvent?.event_type;
+    const userUri = scheduledEvent?.event_memberships?.[0]?.user;
 
     const inviteeName = invitee.name;
     const inviteeEmail = invitee.email;
@@ -91,21 +97,13 @@ serve(async (req) => {
       (q: { question: string; answer: string }) => q.question.toLowerCase().includes('phone')
     )?.answer || null;
     const eventTime = scheduledEvent?.start_time;
-    const eventType = scheduledEvent?.name || event?.name;
-    const eventUri = scheduledEvent?.uri || event?.uri;
-    
-    // Get the creator URI from the event
-    const creatorUri = scheduledEvent?.event_memberships?.[0]?.user || 
-                       payload.payload.event?.uri?.split('/scheduled_events/')?.[0];
+    const eventName = scheduledEvent?.name;
+    const eventUri = scheduledEvent?.uri;
+    const inviteeUri = invitee.uri;
 
-    console.log(`New booking: ${inviteeName} (${inviteeEmail}) for ${eventType} at ${eventTime}`);
+    console.log(`Processing ${eventType}: ${inviteeName} (${inviteeEmail}) for ${eventName}`);
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Find matching client connection
+    // Find matching client connection by user URI
     const { data: connections, error: connError } = await supabase
       .from('client_connections')
       .select('*')
@@ -120,21 +118,91 @@ serve(async (req) => {
     }
 
     // Match connection by Calendly user URI
-    const connection = connections?.find(c => 
-      creatorUri && c.calendly_user_uri && creatorUri.includes(c.calendly_user_uri.split('/').pop())
-    ) || connections?.[0]; // Fallback to first active connection
+    const connection = connections?.find(c => {
+      if (!userUri || !c.calendly_user_uri) return false;
+      return userUri.includes(c.calendly_user_uri.split('/').pop() || '');
+    });
 
     if (!connection) {
-      console.error('No matching client connection found');
+      console.error('No matching client connection found for user:', userUri);
       return new Response(
         JSON.stringify({ error: 'No matching connection' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Matched to client: ${connection.client_name}`);
+    console.log(`Matched to client: ${connection.client_name} (${connection.access_token})`);
 
-    // Send to GHL
+    // Check if this event type is in the watched list
+    if (connection.watched_event_types && Array.isArray(connection.watched_event_types)) {
+      const watchedTypes = connection.watched_event_types as string[];
+      if (watchedTypes.length > 0 && !watchedTypes.includes(eventTypeUri)) {
+        console.log(`Event type ${eventTypeUri} not in watched list, skipping`);
+        return new Response(
+          JSON.stringify({ message: 'Event type not watched' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Handle canceled events
+    if (eventType === 'invitee.canceled') {
+      console.log('Processing cancellation...');
+      
+      // Update existing booking status
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({ event_status: 'canceled' })
+        .eq('calendly_invitee_uri', inviteeUri);
+
+      if (updateError) {
+        console.warn('Error updating booking status:', updateError);
+      }
+
+      // Send cancellation to Slack
+      const slackToken = Deno.env.get('SLACK_BOT_TOKEN');
+      if (slackToken && connection.slack_channel_id) {
+        try {
+          await fetch('https://slack.com/api/chat.postMessage', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${slackToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              channel: connection.slack_channel_id,
+              text: `❌ Booking canceled for ${connection.client_name}`,
+              blocks: [
+                {
+                  type: 'header',
+                  text: { type: 'plain_text', text: '❌ Booking Canceled', emoji: true }
+                },
+                {
+                  type: 'section',
+                  fields: [
+                    { type: 'mrkdwn', text: `*Client:*\n${connection.client_name}` },
+                    { type: 'mrkdwn', text: `*Contact:*\n${inviteeName}` },
+                    { type: 'mrkdwn', text: `*Email:*\n${inviteeEmail}` },
+                    { type: 'mrkdwn', text: `*Event:*\n${eventName}` }
+                  ]
+                }
+              ]
+            })
+          });
+        } catch (slackError) {
+          console.warn('Failed to send cancellation to Slack:', slackError);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, message: 'Cancellation processed' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Handle new bookings (invitee.created)
+    
+    // 1. Create GHL contact
     const ghlApiKey = Deno.env.get('GHL_API_KEY');
     if (ghlApiKey) {
       try {
@@ -151,10 +219,11 @@ serve(async (req) => {
             email: inviteeEmail,
             name: inviteeName,
             phone: inviteePhone,
-            tags: ['calendly-booking'],
+            tags: ['calendly-booking', connection.client_name],
             customFields: [
-              { key: 'event_type', value: eventType },
-              { key: 'booking_time', value: eventTime }
+              { key: 'calendly_event_type', value: eventName },
+              { key: 'calendly_event_time', value: eventTime },
+              { key: 'access_token', value: connection.access_token }
             ]
           })
         });
@@ -170,7 +239,7 @@ serve(async (req) => {
       }
     }
 
-    // Send Slack notification
+    // 2. Send Slack notification
     const slackToken = Deno.env.get('SLACK_BOT_TOKEN');
     if (slackToken && connection.slack_channel_id) {
       try {
@@ -198,11 +267,7 @@ serve(async (req) => {
             blocks: [
               {
                 type: 'header',
-                text: {
-                  type: 'plain_text',
-                  text: '🎯 New Calendly Booking',
-                  emoji: true
-                }
+                text: { type: 'plain_text', text: '🎯 New Calendly Booking', emoji: true }
               },
               {
                 type: 'section',
@@ -211,12 +276,15 @@ serve(async (req) => {
                   { type: 'mrkdwn', text: `*Contact:*\n${inviteeName}` },
                   { type: 'mrkdwn', text: `*Email:*\n${inviteeEmail}` },
                   { type: 'mrkdwn', text: `*Phone:*\n${inviteePhone || 'Not provided'}` },
-                  { type: 'mrkdwn', text: `*Event:*\n${eventType}` },
+                  { type: 'mrkdwn', text: `*Event:*\n${eventName}` },
                   { type: 'mrkdwn', text: `*Time:*\n${formattedTime}` }
                 ]
               },
               {
-                type: 'divider'
+                type: 'context',
+                elements: [
+                  { type: 'mrkdwn', text: `📋 Access Token: \`${connection.access_token}\`` }
+                ]
               }
             ]
           })
@@ -227,16 +295,20 @@ serve(async (req) => {
       }
     }
 
-    // Log booking to database
+    // 3. Log booking to database with access_token
     console.log('Logging booking to database...');
     const { error: bookingError } = await supabase.from('bookings').insert({
       client_connection_id: connection.id,
+      access_token: connection.access_token,
       contact_name: inviteeName,
       contact_email: inviteeEmail,
       contact_phone: inviteePhone,
-      event_type: eventType,
+      event_type_name: eventName,
+      event_type_uri: eventTypeUri,
       event_time: eventTime,
-      calendly_event_id: eventUri,
+      calendly_event_uri: eventUri,
+      calendly_invitee_uri: inviteeUri,
+      event_status: 'scheduled',
       raw_payload: payload
     });
 
