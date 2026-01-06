@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,41 +24,46 @@ serve(async (req) => {
 
     console.log('Fetching Slack channels...');
 
-    const response = await fetch('https://slack.com/api/conversations.list?types=public_channel,private_channel&exclude_archived=true', {
-      headers: {
-        'Authorization': `Bearer ${slackToken}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      'https://slack.com/api/conversations.list?exclude_archived=true&types=public_channel,private_channel',
+      {
+        headers: {
+          'Authorization': `Bearer ${slackToken}`,
+          'Content-Type': 'application/json'
+        }
       }
-    });
+    );
 
-    const data = await response.json();
-
-    if (!data.ok) {
-      console.error('Slack API error:', data.error);
-      return new Response(
-        JSON.stringify({ error: `Slack API error: ${data.error}` }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!response.ok) {
+      throw new Error('Failed to fetch Slack channels');
     }
 
-    const channels = data.channels.map((ch: { id: string; name: string; is_private: boolean }) => ({
+    const data = await response.json();
+    
+    if (!data.ok) {
+      console.error('Slack API error:', data.error);
+      throw new Error(data.error || 'Slack API error');
+    }
+
+    const channels = data.channels.map((ch: any) => ({
       id: ch.id,
-      name: ch.name,
-      is_private: ch.is_private
+      name: ch.name
     }));
 
     console.log(`Found ${channels.length} channels`);
 
-    return new Response(
-      JSON.stringify({ channels }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-
-  } catch (error) {
+    return new Response(JSON.stringify({ channels }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error: unknown) {
     console.error('Error fetching Slack channels:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch Slack channels';
     return new Response(
-      JSON.stringify({ error: 'Failed to fetch Slack channels' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: errorMessage }), 
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
     );
   }
-});
+})
