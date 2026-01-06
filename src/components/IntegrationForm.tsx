@@ -39,6 +39,7 @@ function generateAccessToken(): string {
 }
 
 const formSchema = z.object({
+  clientName: z.string().min(1, "Client name is required"),
   calendlyToken: z.string().min(1, "Calendly API Token is required"),
   ghlLocation: z.string().min(1, "Please select a GHL Location"),
   slackChannel: z.string().min(1, "Please select a Slack channel"),
@@ -133,6 +134,7 @@ const IntegrationForm = () => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      clientName: "",
       calendlyToken: "",
       ghlLocation: "",
       slackChannel: "",
@@ -317,6 +319,7 @@ const IntegrationForm = () => {
       const { data, error } = await supabase.functions.invoke('setup-client', {
         body: {
           access_token: accessToken,
+          client_name: values.clientName,
           calendly_token: values.calendlyToken,
           calendly_user_uri: calendlyInfo.userUri,
           calendly_org_uri: calendlyInfo.orgUri,
@@ -471,6 +474,28 @@ const IntegrationForm = () => {
                     Save this token! The client will use it to access their dashboard later.
                   </p>
                 </div>
+
+                {/* Client Name Field */}
+                <FormField
+                  control={form.control}
+                  name="clientName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground font-medium">Client Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter client or company name"
+                          className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        This name will be used to identify the client in the admin dashboard
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <FormField
                   control={form.control}

@@ -14,6 +14,7 @@ serve(async (req) => {
   try {
     const { 
       access_token,
+      client_name,
       calendly_token, 
       calendly_user_uri,
       calendly_org_uri,
@@ -28,7 +29,7 @@ serve(async (req) => {
     console.log(`Setting up client with token: ${access_token?.substring(0, 8)}...`);
 
     // Validate required fields
-    if (!access_token || !calendly_token || !ghl_location_id || !slack_channel_id || !conversifi_webhook_url) {
+    if (!access_token || !client_name || !calendly_token || !ghl_location_id || !slack_channel_id || !conversifi_webhook_url) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -112,7 +113,7 @@ serve(async (req) => {
       .from('client_connections')
       .insert({
         access_token: accessToken,
-        client_name: `Client-${accessToken.substring(0, 8)}`,
+        client_name: client_name,
         calendly_token,
         calendly_webhook_id: webhookId,
         calendly_user_uri: userUri,
@@ -153,7 +154,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             channel: slack_channel_id,
-            text: `🎉 New client integration activated with token: ${accessToken.substring(0, 8)}...`,
+            text: `🎉 New client integration activated: ${client_name}`,
             blocks: [
               {
                 type: 'header',
@@ -166,6 +167,7 @@ serve(async (req) => {
               {
                 type: 'section',
                 fields: [
+                  { type: 'mrkdwn', text: `*Client:*\n${client_name}` },
                   { type: 'mrkdwn', text: `*Access Token:*\n\`${accessToken}\`` },
                   { type: 'mrkdwn', text: `*Calendly Events:*\n${watchedCount === 'all' ? 'All events' : `${watchedCount} selected`}` },
                   { type: 'mrkdwn', text: `*GHL Location:*\n${ghl_location_name}` }
