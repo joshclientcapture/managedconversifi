@@ -125,11 +125,11 @@ const Admin = () => {
     try {
       // First delete the webhook if it exists
       if (connection.calendly_webhook_id) {
-        const webhookUri = `https://api.calendly.com/webhook_subscriptions/${connection.calendly_webhook_id}`;
+        // calendly_webhook_id is already the full URI
         await supabase.functions.invoke("delete-calendly-webhook", {
           body: {
             calendly_token: connection.calendly_token,
-            webhook_uri: webhookUri,
+            webhook_uri: connection.calendly_webhook_id,
           },
         });
       }
