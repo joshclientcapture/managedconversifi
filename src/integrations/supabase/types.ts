@@ -14,7 +14,127 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          calendly_event_id: string | null
+          client_connection_id: string
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string | null
+          event_time: string | null
+          event_type: string | null
+          id: string
+          raw_payload: Json | null
+        }
+        Insert: {
+          calendly_event_id?: string | null
+          client_connection_id: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          event_time?: string | null
+          event_type?: string | null
+          id?: string
+          raw_payload?: Json | null
+        }
+        Update: {
+          calendly_event_id?: string | null
+          client_connection_id?: string
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string | null
+          event_time?: string | null
+          event_type?: string | null
+          id?: string
+          raw_payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_client_connection_id_fkey"
+            columns: ["client_connection_id"]
+            isOneToOne: false
+            referencedRelation: "client_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_connections: {
+        Row: {
+          calendly_token: string
+          calendly_user_uri: string | null
+          calendly_webhook_id: string | null
+          client_name: string
+          created_at: string | null
+          ghl_location_id: string
+          id: string
+          is_active: boolean | null
+          slack_channel_id: string
+          slack_channel_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          calendly_token: string
+          calendly_user_uri?: string | null
+          calendly_webhook_id?: string | null
+          client_name: string
+          created_at?: string | null
+          ghl_location_id: string
+          id?: string
+          is_active?: boolean | null
+          slack_channel_id: string
+          slack_channel_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          calendly_token?: string
+          calendly_user_uri?: string | null
+          calendly_webhook_id?: string | null
+          client_name?: string
+          created_at?: string | null
+          ghl_location_id?: string
+          id?: string
+          is_active?: boolean | null
+          slack_channel_id?: string
+          slack_channel_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_connections_ghl_location_id_fkey"
+            columns: ["ghl_location_id"]
+            isOneToOne: false
+            referencedRelation: "ghl_locations"
+            referencedColumns: ["location_id"]
+          },
+        ]
+      }
+      ghl_locations: {
+        Row: {
+          created_at: string | null
+          location_id: string
+          location_name: string
+          owner_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          location_id: string
+          location_name: string
+          owner_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          location_id?: string
+          location_name?: string
+          owner_name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
