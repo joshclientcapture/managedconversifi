@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff, Hash, RefreshCw } from "lucide-react";
+import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff, Hash, RefreshCw, Calendar, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/form";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import StatusIndicator from "./StatusIndicator";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -62,6 +64,15 @@ interface CalendlyInfo {
   userEmail: string;
 }
 
+interface CalendlyEventType {
+  uri: string;
+  name: string;
+  duration: number;
+  active: boolean;
+  scheduling_url: string;
+  type: string;
+}
+
 interface ConnectionResult {
   id: string;
   client_name: string;
@@ -81,6 +92,9 @@ const IntegrationForm = () => {
   const [calendlyInfo, setCalendlyInfo] = useState<CalendlyInfo | null>(null);
   const [validatingCalendly, setValidatingCalendly] = useState(false);
   const [calendlyError, setCalendlyError] = useState<string | null>(null);
+  const [eventTypes, setEventTypes] = useState<CalendlyEventType[]>([]);
+  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
+  const [loadingEventTypes, setLoadingEventTypes] = useState(false);
   const [statuses, setStatuses] = useState<ServiceStatuses>({
     calendly: "idle",
     ghl: "idle",
@@ -129,6 +143,23 @@ const IntegrationForm = () => {
     }
   }, []);
 
+  // Fetch Calendly event types
+  const fetchEventTypes = useCallback(async (token: string, userUri: string) => {
+    setLoadingEventTypes(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-calendly-event-types', {
+        body: { calendly_token: token, user_uri: userUri }
+      });
+      
+      if (error) throw error;
+      setEventTypes(data?.eventTypes || []);
+    } catch (error) {
+      console.error('Error fetching event types:', error);
+    } finally {
+      setLoadingEventTypes(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchLocations();
     fetchChannels();
@@ -139,6 +170,8 @@ const IntegrationForm = () => {
     if (!token || token.length < 10) {
       setCalendlyInfo(null);
       setCalendlyError(null);
+      setEventTypes([]);
+      setSelectedEventTypes([]);
       setStatuses(prev => ({ ...prev, calendly: "idle" }));
       return;
     }
@@ -158,21 +191,43 @@ const IntegrationForm = () => {
         throw new Error(data?.error || 'Invalid token');
       }
 
-      setCalendlyInfo({
+      const info = {
         userUri: data.userUri,
         orgUri: data.orgUri,
         userName: data.userName,
         userEmail: data.userEmail,
-      });
+      };
+      setCalendlyInfo(info);
       setStatuses(prev => ({ ...prev, calendly: "connected" }));
+      
+      // Fetch event types after successful validation
+      fetchEventTypes(token, data.userUri);
     } catch (error) {
       console.error('Calendly validation error:', error);
       setCalendlyError(error instanceof Error ? error.message : 'Invalid Calendly token');
       setCalendlyInfo(null);
+      setEventTypes([]);
+      setSelectedEventTypes([]);
       setStatuses(prev => ({ ...prev, calendly: "error" }));
     } finally {
       setValidatingCalendly(false);
     }
+  };
+
+  const toggleEventType = (uri: string) => {
+    setSelectedEventTypes(prev => 
+      prev.includes(uri) 
+        ? prev.filter(u => u !== uri)
+        : [...prev, uri]
+    );
+  };
+
+  const selectAllEventTypes = () => {
+    setSelectedEventTypes(eventTypes.map(et => et.uri));
+  };
+
+  const clearEventTypes = () => {
+    setSelectedEventTypes([]);
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -186,17 +241,16 @@ const IntegrationForm = () => {
     setConnectionSuccess(false);
 
     try {
-      // Get the selected location and channel names
       const selectedLocation = ghlLocations.find(loc => loc.locationId === values.ghlLocation);
       const selectedChannel = slackChannels.find(ch => ch.id === values.slackChannel);
 
-      // Call the setup-client edge function
       const { data, error } = await supabase.functions.invoke('setup-client', {
         body: {
           client_name: values.clientName,
           calendly_token: values.calendlyToken,
           calendly_user_uri: calendlyInfo.userUri,
           calendly_org_uri: calendlyInfo.orgUri,
+          watched_event_types: selectedEventTypes.length > 0 ? selectedEventTypes : null,
           ghl_location_id: values.ghlLocation,
           ghl_location_name: selectedLocation?.locationName || '',
           slack_channel_id: values.slackChannel,
@@ -210,7 +264,6 @@ const IntegrationForm = () => {
         throw new Error(data?.error || 'Connection failed');
       }
 
-      // Animate status updates
       setStatuses(prev => ({ ...prev, ghl: "connected" }));
       await new Promise(r => setTimeout(r, 300));
       setStatuses(prev => ({ ...prev, slack: "connected" }));
@@ -221,8 +274,9 @@ const IntegrationForm = () => {
       setConnectionSuccess(true);
       form.reset();
       setCalendlyInfo(null);
+      setEventTypes([]);
+      setSelectedEventTypes([]);
 
-      // Auto-reset after 5 seconds
       setTimeout(() => {
         resetForm();
       }, 5000);
@@ -246,6 +300,8 @@ const IntegrationForm = () => {
     setConnectionResult(null);
     setCalendlyInfo(null);
     setCalendlyError(null);
+    setEventTypes([]);
+    setSelectedEventTypes([]);
     setStatuses({
       calendly: "idle",
       ghl: "idle",
@@ -256,7 +312,6 @@ const IntegrationForm = () => {
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-6">
-      {/* Main Form Card */}
       <Card className="gradient-card shadow-card border-0 transition-all duration-300 hover:shadow-card-hover">
         <CardHeader className="space-y-1 pb-6">
           <div className="flex items-center gap-3">
@@ -274,7 +329,6 @@ const IntegrationForm = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Success Message */}
           {connectionSuccess && connectionResult && (
             <Alert className="border-success/30 bg-success/10 animate-fade-in-up">
               <CheckCircle2 className="h-5 w-5 text-success" />
@@ -287,7 +341,6 @@ const IntegrationForm = () => {
             </Alert>
           )}
 
-          {/* Error Message */}
           {connectionError && (
             <Alert variant="destructive" className="animate-fade-in-up">
               <AlertCircle className="h-5 w-5" />
@@ -296,7 +349,6 @@ const IntegrationForm = () => {
             </Alert>
           )}
 
-          {/* Status Indicators */}
           <div className="rounded-xl border bg-muted/30 p-4">
             <h3 className="text-sm font-semibold text-foreground mb-3">Service Status</h3>
             <div className="grid grid-cols-2 gap-x-6 gap-y-1">
@@ -307,7 +359,6 @@ const IntegrationForm = () => {
             </div>
           </div>
 
-          {/* Form */}
           {!connectionSuccess && (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
@@ -388,6 +439,116 @@ const IntegrationForm = () => {
                   )}
                 />
 
+                {/* Event Types Multi-Select */}
+                {calendlyInfo && (
+                  <FormItem>
+                    <div className="flex items-center justify-between">
+                      <FormLabel className="text-foreground font-medium">
+                        Calendly Event Types
+                        <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+                      </FormLabel>
+                      {eventTypes.length > 0 && (
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={selectAllEventTypes}
+                          >
+                            Select All
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            onClick={clearEventTypes}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {loadingEventTypes ? (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading event types...
+                      </div>
+                    ) : eventTypes.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-2">
+                        No active event types found
+                      </p>
+                    ) : (
+                      <>
+                        <div className="border rounded-lg bg-background p-3 space-y-2 max-h-48 overflow-y-auto">
+                          {eventTypes.map((et) => (
+                            <div
+                              key={et.uri}
+                              className={`flex items-center gap-3 p-2 rounded-md cursor-pointer transition-colors ${
+                                selectedEventTypes.includes(et.uri) 
+                                  ? 'bg-primary/10 border border-primary/30' 
+                                  : 'hover:bg-muted/50'
+                              }`}
+                              onClick={() => toggleEventType(et.uri)}
+                            >
+                              <Checkbox
+                                checked={selectedEventTypes.includes(et.uri)}
+                                onCheckedChange={() => toggleEventType(et.uri)}
+                                className="pointer-events-none"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {et.name}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {et.duration} min • {et.type}
+                                </p>
+                              </div>
+                              <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            </div>
+                          ))}
+                        </div>
+                        
+                        {selectedEventTypes.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {selectedEventTypes.map((uri) => {
+                              const et = eventTypes.find(e => e.uri === uri);
+                              return et ? (
+                                <Badge 
+                                  key={uri} 
+                                  variant="secondary"
+                                  className="text-xs pl-2 pr-1 py-0.5 flex items-center gap-1"
+                                >
+                                  {et.name}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleEventType(uri);
+                                    }}
+                                    className="ml-1 hover:bg-muted rounded-full p-0.5"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                        
+                        <FormDescription className="text-xs text-muted-foreground">
+                          {selectedEventTypes.length === 0 
+                            ? "Leave empty to monitor all event types"
+                            : `Monitoring ${selectedEventTypes.length} of ${eventTypes.length} event type(s)`
+                          }
+                        </FormDescription>
+                      </>
+                    )}
+                  </FormItem>
+                )}
+
                 <FormField
                   control={form.control}
                   name="ghlLocation"
@@ -413,7 +574,7 @@ const IntegrationForm = () => {
                             <SelectValue placeholder={loadingLocations ? "Loading locations..." : "Select GHL Location"} />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="bg-popover border shadow-lg max-h-60">
+                        <SelectContent className="bg-popover border shadow-lg max-h-60 z-50">
                           {ghlLocations.map((location) => (
                             <SelectItem
                               key={location.locationId}
@@ -455,7 +616,7 @@ const IntegrationForm = () => {
                             <SelectValue placeholder={loadingChannels ? "Loading channels..." : "Select Slack channel for notifications"} />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent className="bg-popover border shadow-lg max-h-60">
+                        <SelectContent className="bg-popover border shadow-lg max-h-60 z-50">
                           {slackChannels.map((channel) => (
                             <SelectItem
                               key={channel.id}
