@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       bookings: {
         Row: {
+          access_token: string | null
           calendly_event_id: string | null
           calendly_event_uri: string | null
           calendly_invitee_uri: string | null
@@ -33,6 +34,7 @@ export type Database = {
           raw_payload: Json | null
         }
         Insert: {
+          access_token?: string | null
           calendly_event_id?: string | null
           calendly_event_uri?: string | null
           calendly_invitee_uri?: string | null
@@ -50,6 +52,7 @@ export type Database = {
           raw_payload?: Json | null
         }
         Update: {
+          access_token?: string | null
           calendly_event_id?: string | null
           calendly_event_uri?: string | null
           calendly_invitee_uri?: string | null
@@ -78,6 +81,7 @@ export type Database = {
       }
       campaign_stats: {
         Row: {
+          access_token: string | null
           campaign_data: Json | null
           client_connection_id: string
           connections_made: number | null
@@ -89,6 +93,7 @@ export type Database = {
           replies_received: number | null
         }
         Insert: {
+          access_token?: string | null
           campaign_data?: Json | null
           client_connection_id: string
           connections_made?: number | null
@@ -100,6 +105,7 @@ export type Database = {
           replies_received?: number | null
         }
         Update: {
+          access_token?: string | null
           campaign_data?: Json | null
           client_connection_id?: string
           connections_made?: number | null
@@ -122,6 +128,7 @@ export type Database = {
       }
       client_connections: {
         Row: {
+          access_token: string | null
           calendly_org_uri: string
           calendly_token: string
           calendly_user_uri: string
@@ -139,6 +146,7 @@ export type Database = {
           watched_event_types: Json | null
         }
         Insert: {
+          access_token?: string | null
           calendly_org_uri: string
           calendly_token: string
           calendly_user_uri: string
@@ -156,6 +164,7 @@ export type Database = {
           watched_event_types?: Json | null
         }
         Update: {
+          access_token?: string | null
           calendly_org_uri?: string
           calendly_token?: string
           calendly_user_uri?: string

@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -15,15 +14,23 @@ serve(async (req) => {
   try {
     console.log('Starting campaign stats sync...');
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+    const apiKey = Deno.env.get('CONVERSIFI_API_KEY');
+
+    if (!apiKey) {
+      console.error('CONVERSIFI_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Conversifi API key not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Get all active client connections with Conversifi webhooks
     const { data: connections, error: fetchError } = await supabase
       .from('client_connections')
-      .select('id, client_name, conversifi_webhook_url')
+      .select('id, client_name, access_token, conversifi_webhook_url')
       .eq('is_active', true)
       .not('conversifi_webhook_url', 'is', null);
 
@@ -47,15 +54,13 @@ serve(async (req) => {
 
     for (const connection of connections) {
       try {
-        console.log(`Fetching stats for ${connection.client_name} from ${connection.conversifi_webhook_url}`);
+        console.log(`Fetching stats for ${connection.client_name} (${connection.access_token})`);
 
-        const apiKey = Deno.env.get('CONVERSIFI_API_KEY');
-        
-        // Call Conversifi webhook URL with GET request
+        // Call Conversifi webhook URL with GET request and API key
         const response = await fetch(connection.conversifi_webhook_url, {
           method: 'GET',
           headers: {
-            'X-API-Key': apiKey || '',
+            'X-API-Key': apiKey,
             'Content-Type': 'application/json'
           }
         });
@@ -65,6 +70,7 @@ serve(async (req) => {
           console.error(`Conversifi API error for ${connection.client_name}:`, errorText);
           results.push({
             client: connection.client_name,
+            access_token: connection.access_token,
             success: false,
             error: `API error: ${response.status}`
           });
@@ -74,19 +80,20 @@ serve(async (req) => {
         const statsData = await response.json();
         console.log(`Received stats for ${connection.client_name}:`, JSON.stringify(statsData).slice(0, 200));
 
-        // Extract stats from response (adjust based on actual Conversifi API response structure)
+        // Extract stats from response (handle various response formats)
         const stats = {
-          messages_sent: statsData.messages_sent || statsData.messagesSent || 0,
-          replies_received: statsData.replies_received || statsData.repliesReceived || 0,
-          connections_made: statsData.connections_made || statsData.connectionsMade || 0,
+          messages_sent: statsData.messages_sent || statsData.messagesSent || statsData.total_messages || 0,
+          replies_received: statsData.replies_received || statsData.repliesReceived || statsData.total_replies || 0,
+          connections_made: statsData.connections_made || statsData.connectionsMade || statsData.total_connections || 0,
           meetings_booked: statsData.meetings_booked || statsData.meetingsBooked || 0,
         };
 
-        // Upsert campaign stats for today
+        // Upsert campaign stats for today with access_token
         const { error: upsertError } = await supabase
           .from('campaign_stats')
           .upsert({
             client_connection_id: connection.id,
+            access_token: connection.access_token,
             date: today,
             messages_sent: stats.messages_sent,
             replies_received: stats.replies_received,
@@ -101,6 +108,7 @@ serve(async (req) => {
           console.error(`Database error for ${connection.client_name}:`, upsertError);
           results.push({
             client: connection.client_name,
+            access_token: connection.access_token,
             success: false,
             error: upsertError.message
           });
@@ -108,6 +116,7 @@ serve(async (req) => {
           console.log(`Successfully synced stats for ${connection.client_name}`);
           results.push({
             client: connection.client_name,
+            access_token: connection.access_token,
             success: true,
             stats
           });
@@ -117,6 +126,7 @@ serve(async (req) => {
         console.error(`Error syncing ${connection.client_name}:`, clientError);
         results.push({
           client: connection.client_name,
+          access_token: connection.access_token,
           success: false,
           error: String(clientError)
         });

@@ -6,8 +6,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Generate a secure access token
+function generateAccessToken(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const segments = [8, 4, 4, 12];
+  return segments.map(len => 
+    Array.from(crypto.getRandomValues(new Uint8Array(len)))
+      .map(b => chars[b % chars.length])
+      .join('')
+  ).join('-');
+}
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -35,6 +45,10 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Generate unique access token for this client
+    const accessToken = generateAccessToken();
+    console.log(`Generated access token: ${accessToken}`);
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -76,9 +90,10 @@ serve(async (req) => {
 
     const webhookPayload: Record<string, unknown> = {
       url: webhookUrl,
-      events: ['invitee.created'],
+      events: ['invitee.created', 'invitee.canceled'],
       organization: orgUri,
-      scope: 'organization'
+      user: userUri,
+      scope: 'user'
     };
 
     if (signingKey) {
@@ -102,20 +117,22 @@ serve(async (req) => {
     } else {
       const webhookError = await webhookResponse.text();
       console.warn('Webhook registration failed (may already exist):', webhookError);
-      // Continue anyway - webhook might already exist
     }
 
-    // Step 3: Store connection in database
+    // Step 3: Store connection in database with access_token
     console.log('Storing client connection...');
     const { data, error } = await supabase
       .from('client_connections')
       .insert({
+        access_token: accessToken,
         client_name,
         calendly_token,
         calendly_webhook_id: webhookId,
         calendly_user_uri: userUri,
         calendly_org_uri: orgUri,
-        watched_event_types: watched_event_types ? JSON.stringify(watched_event_types) : null,
+        watched_event_types: watched_event_types && watched_event_types.length > 0 
+          ? watched_event_types 
+          : null,
         ghl_location_id,
         ghl_location_name,
         slack_channel_id,
@@ -136,10 +153,11 @@ serve(async (req) => {
 
     console.log('Client connection created successfully:', data.id);
 
-    // Step 4: Send confirmation to Slack
+    // Step 4: Send confirmation to Slack with access token
     const slackToken = Deno.env.get('SLACK_BOT_TOKEN');
     if (slackToken) {
       try {
+        const watchedCount = watched_event_types?.length || 'all';
         await fetch('https://slack.com/api/chat.postMessage', {
           method: 'POST',
           headers: {
@@ -151,11 +169,27 @@ serve(async (req) => {
             text: `🎉 New client integration activated: ${client_name}`,
             blocks: [
               {
-                type: 'section',
+                type: 'header',
                 text: {
-                  type: 'mrkdwn',
-                  text: `*✅ Client Integration Activated*\n\n*Client:* ${client_name}\n*Calendly:* Connected\n*GHL Location:* ${ghl_location_id}\n*Status:* Active`
+                  type: 'plain_text',
+                  text: '✅ Client Integration Activated',
+                  emoji: true
                 }
+              },
+              {
+                type: 'section',
+                fields: [
+                  { type: 'mrkdwn', text: `*Client:*\n${client_name}` },
+                  { type: 'mrkdwn', text: `*Access Token:*\n\`${accessToken}\`` },
+                  { type: 'mrkdwn', text: `*Calendly Events:*\n${watchedCount === 'all' ? 'All events' : `${watchedCount} selected`}` },
+                  { type: 'mrkdwn', text: `*GHL Location:*\n${ghl_location_name}` }
+                ]
+              },
+              {
+                type: 'context',
+                elements: [
+                  { type: 'mrkdwn', text: '📊 Campaign stats syncing • 🎯 Bookings active • 📨 Notifications enabled' }
+                ]
               }
             ]
           })
@@ -171,11 +205,13 @@ serve(async (req) => {
         success: true,
         connection: {
           id: data.id,
+          access_token: accessToken,
           client_name: data.client_name,
           is_active: data.is_active,
           calendly_connected: true,
           ghl_connected: true,
-          slack_connected: true
+          slack_connected: true,
+          conversifi_connected: true
         }
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
