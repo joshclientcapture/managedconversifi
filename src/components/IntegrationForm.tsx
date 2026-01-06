@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff, Hash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,21 +24,16 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import StatusIndicator from "./StatusIndicator";
+import { supabase } from "@/integrations/supabase/client";
 
 const formSchema = z.object({
   clientName: z.string().min(1, "Client name is required").max(100, "Client name must be less than 100 characters"),
   calendlyToken: z.string().min(1, "Calendly API Token is required"),
   ghlLocation: z.string().min(1, "Please select a GHL Location"),
+  slackChannel: z.string().min(1, "Please select a Slack channel"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-// Dummy data for GHL locations (will be replaced with Supabase data)
-const GHL_LOCATIONS = [
-  "Agent Media Marketing",
-  "Aim Healthcare Recruiting",
-  "Balanced Health",
-];
 
 type ConnectionStatus = "idle" | "connecting" | "connected" | "error";
 
@@ -49,11 +44,34 @@ interface ServiceStatuses {
   database: ConnectionStatus;
 }
 
+interface GhlLocation {
+  location_id: string;
+  location_name: string;
+  owner_name: string | null;
+}
+
+interface SlackChannel {
+  id: string;
+  name: string;
+  is_private: boolean;
+}
+
+interface ConnectionResult {
+  id: string;
+  client_name: string;
+  is_active: boolean;
+}
+
 const IntegrationForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToken, setShowToken] = useState(false);
   const [connectionSuccess, setConnectionSuccess] = useState(false);
+  const [connectionResult, setConnectionResult] = useState<ConnectionResult | null>(null);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [ghlLocations, setGhlLocations] = useState<GhlLocation[]>([]);
+  const [slackChannels, setSlackChannels] = useState<SlackChannel[]>([]);
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  const [loadingChannels, setLoadingChannels] = useState(true);
   const [statuses, setStatuses] = useState<ServiceStatuses>({
     calendly: "idle",
     ghl: "idle",
@@ -67,50 +85,114 @@ const IntegrationForm = () => {
       clientName: "",
       calendlyToken: "",
       ghlLocation: "",
+      slackChannel: "",
     },
+    mode: "onChange",
   });
 
-  const simulateConnection = async (values: FormValues) => {
+  // Fetch GHL locations from Supabase
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('ghl_locations')
+          .select('location_id, location_name, owner_name')
+          .order('location_name');
+
+        if (error) throw error;
+        setGhlLocations(data || []);
+      } catch (error) {
+        console.error('Error fetching GHL locations:', error);
+      } finally {
+        setLoadingLocations(false);
+      }
+    };
+
+    fetchLocations();
+  }, []);
+
+  // Fetch Slack channels from edge function
+  useEffect(() => {
+    const fetchChannels = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('get-slack-channels');
+        
+        if (error) throw error;
+        setSlackChannels(data?.channels || []);
+      } catch (error) {
+        console.error('Error fetching Slack channels:', error);
+      } finally {
+        setLoadingChannels(false);
+      }
+    };
+
+    fetchChannels();
+  }, []);
+
+  const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     setConnectionError(null);
     setConnectionSuccess(false);
 
-    // Simulate connecting to each service
-    const services: (keyof ServiceStatuses)[] = ["calendly", "ghl", "slack", "database"];
-    
-    for (const service of services) {
-      setStatuses((prev) => ({ ...prev, [service]: "connecting" }));
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setStatuses((prev) => ({ ...prev, [service]: "connected" }));
-    }
-
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    // For demo purposes, always succeed
-    // In production, this would call the Supabase Edge Function
-    setIsSubmitting(false);
-    setConnectionSuccess(true);
-    form.reset();
-  };
-
-  const onSubmit = async (values: FormValues) => {
     try {
-      await simulateConnection(values);
+      // Update status indicators
+      setStatuses(prev => ({ ...prev, calendly: "connecting" }));
+      
+      // Get the selected channel name
+      const selectedChannel = slackChannels.find(ch => ch.id === values.slackChannel);
+
+      // Call the setup-client edge function
+      const { data, error } = await supabase.functions.invoke('setup-client', {
+        body: {
+          client_name: values.clientName,
+          calendly_token: values.calendlyToken,
+          ghl_location_id: values.ghlLocation,
+          slack_channel_id: values.slackChannel,
+          slack_channel_name: selectedChannel?.name || ''
+        }
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Connection failed');
+      }
+
+      // Animate status updates
+      setStatuses(prev => ({ ...prev, calendly: "connected" }));
+      await new Promise(r => setTimeout(r, 300));
+      setStatuses(prev => ({ ...prev, ghl: "connected" }));
+      await new Promise(r => setTimeout(r, 300));
+      setStatuses(prev => ({ ...prev, slack: "connected" }));
+      await new Promise(r => setTimeout(r, 300));
+      setStatuses(prev => ({ ...prev, database: "connected" }));
+
+      setConnectionResult(data.connection);
+      setConnectionSuccess(true);
+      form.reset();
+
+      // Auto-reset after 5 seconds
+      setTimeout(() => {
+        resetForm();
+      }, 5000);
+
     } catch (error) {
-      setConnectionError("Failed to establish connection. Please check your credentials and try again.");
+      console.error('Connection error:', error);
+      setConnectionError(error instanceof Error ? error.message : 'Failed to establish connection');
       setStatuses({
         calendly: "error",
         ghl: "error",
         slack: "error",
         database: "error",
       });
+    } finally {
       setIsSubmitting(false);
     }
   };
 
   const resetForm = () => {
     setConnectionSuccess(false);
+    setConnectionResult(null);
     setStatuses({
       calendly: "idle",
       ghl: "idle",
@@ -140,19 +222,14 @@ const IntegrationForm = () => {
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Success Message */}
-          {connectionSuccess && (
+          {connectionSuccess && connectionResult && (
             <Alert className="border-success/30 bg-success/10 animate-fade-in-up">
               <CheckCircle2 className="h-5 w-5 text-success" />
-              <AlertTitle className="text-success font-semibold">Connection Active</AlertTitle>
-              <AlertDescription className="text-success/80">
-                All services have been successfully connected and activated.
-                <Button
-                  variant="link"
-                  className="p-0 h-auto ml-2 text-success underline-offset-4"
-                  onClick={resetForm}
-                >
-                  Set up another client
-                </Button>
+              <AlertTitle className="text-success font-semibold">✅ Integration Active</AlertTitle>
+              <AlertDescription className="text-success/80 space-y-2">
+                <p><strong>Client:</strong> {connectionResult.client_name}</p>
+                <p><strong>Connected Services:</strong> Calendly, GHL, Slack, Database</p>
+                <p className="text-xs mt-2">Form will reset in 5 seconds...</p>
               </AlertDescription>
             </Alert>
           )}
@@ -242,20 +319,53 @@ const IntegrationForm = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-foreground font-medium">GHL Location</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
-                            <SelectValue placeholder="Select GHL Location" />
+                            <SelectValue placeholder={loadingLocations ? "Loading locations..." : "Select GHL Location"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="bg-popover border shadow-lg">
-                          {GHL_LOCATIONS.map((location) => (
+                          {ghlLocations.map((location) => (
                             <SelectItem
-                              key={location}
-                              value={location}
+                              key={location.location_id}
+                              value={location.location_id}
                               className="cursor-pointer hover:bg-accent focus:bg-accent"
                             >
-                              {location}
+                              {location.location_name} {location.owner_name && `(${location.owner_name})`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="slackChannel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground font-medium">Slack Channel</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
+                            <SelectValue placeholder={loadingChannels ? "Loading channels..." : "Select Slack channel for notifications"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-popover border shadow-lg max-h-60">
+                          {slackChannels.map((channel) => (
+                            <SelectItem
+                              key={channel.id}
+                              value={channel.id}
+                              className="cursor-pointer hover:bg-accent focus:bg-accent"
+                            >
+                              <span className="flex items-center gap-2">
+                                <Hash className="h-3 w-3 text-muted-foreground" />
+                                {channel.name}
+                                {channel.is_private && <span className="text-xs text-muted-foreground">(private)</span>}
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
