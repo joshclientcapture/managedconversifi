@@ -183,30 +183,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ghl_locations: {
-        Row: {
-          created_at: string | null
-          location_id: string
-          location_name: string
-          owner_name: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          location_id: string
-          location_name: string
-          owner_name?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          location_id?: string
-          location_name?: string
-          owner_name?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
     }
     Views: {
       [_ in never]: never
