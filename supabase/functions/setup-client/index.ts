@@ -13,12 +13,23 @@ serve(async (req) => {
   }
 
   try {
-    const { client_name, calendly_token, ghl_location_id, slack_channel_id, slack_channel_name } = await req.json();
+    const { 
+      client_name, 
+      calendly_token, 
+      calendly_user_uri,
+      calendly_org_uri,
+      watched_event_types,
+      ghl_location_id, 
+      ghl_location_name,
+      slack_channel_id, 
+      slack_channel_name,
+      conversifi_webhook_url
+    } = await req.json();
 
     console.log(`Setting up client: ${client_name}`);
 
     // Validate required fields
-    if (!client_name || !calendly_token || !ghl_location_id || !slack_channel_id) {
+    if (!client_name || !calendly_token || !ghl_location_id || !slack_channel_id || !conversifi_webhook_url) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -30,26 +41,33 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Step 1: Verify Calendly token and get user info
-    console.log('Verifying Calendly token...');
-    const userResponse = await fetch('https://api.calendly.com/users/me', {
-      headers: { 'Authorization': `Bearer ${calendly_token}` }
-    });
+    // Step 1: Verify Calendly token and get user info (if not provided)
+    let userUri = calendly_user_uri;
+    let orgUri = calendly_org_uri;
+    
+    if (!userUri || !orgUri) {
+      console.log('Verifying Calendly token...');
+      const userResponse = await fetch('https://api.calendly.com/users/me', {
+        headers: { 'Authorization': `Bearer ${calendly_token}` }
+      });
 
-    if (!userResponse.ok) {
-      const errorText = await userResponse.text();
-      console.error('Calendly API error:', errorText);
-      return new Response(
-        JSON.stringify({ error: 'Invalid Calendly API token', details: errorText }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (!userResponse.ok) {
+        const errorText = await userResponse.text();
+        console.error('Calendly API error:', errorText);
+        return new Response(
+          JSON.stringify({ error: 'Invalid Calendly API token', details: errorText }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const userData = await userResponse.json();
+      userUri = userData.resource.uri;
+      orgUri = userData.resource.current_organization;
+
+      console.log(`Calendly user verified: ${userData.resource.email}`);
+    } else {
+      console.log('Using provided Calendly user/org URIs');
     }
-
-    const userData = await userResponse.json();
-    const userUri = userData.resource.uri;
-    const orgUri = userData.resource.current_organization;
-
-    console.log(`Calendly user verified: ${userData.resource.email}`);
 
     // Step 2: Register Calendly webhook
     console.log('Registering Calendly webhook...');
@@ -96,9 +114,13 @@ serve(async (req) => {
         calendly_token,
         calendly_webhook_id: webhookId,
         calendly_user_uri: userUri,
+        calendly_org_uri: orgUri,
+        watched_event_types: watched_event_types ? JSON.stringify(watched_event_types) : null,
         ghl_location_id,
+        ghl_location_name,
         slack_channel_id,
         slack_channel_name,
+        conversifi_webhook_url,
         is_active: true
       })
       .select()
