@@ -92,7 +92,18 @@ const ReportsSection = ({ connectionId }: ReportsSectionProps) => {
                     </div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => window.open(report.report_url, "_blank")}>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    const link = document.createElement("a");
+                    link.href = report.report_url;
+                    link.download = `${report.report_name}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                >
                   <Download className="h-4 w-4 mr-2" />
                   Download
                 </Button>
