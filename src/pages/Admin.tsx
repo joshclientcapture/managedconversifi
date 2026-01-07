@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, RefreshCw, Webhook, ArrowLeft } from "lucide-react";
+import { Trash2, RefreshCw, Webhook, ArrowLeft, Pencil, RotateCcw, Copy, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
 import {
@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import EditConnectionModal from "@/components/EditConnectionModal";
 
 interface ClientConnection {
   id: string;
@@ -27,7 +28,10 @@ interface ClientConnection {
   calendly_user_uri: string;
   calendly_webhook_id: string | null;
   ghl_location_name: string;
+  ghl_api_key: string | null;
   slack_channel_name: string | null;
+  conversifi_webhook_url: string | null;
+  access_token: string | null;
   is_active: boolean;
   created_at: string;
 }
@@ -49,8 +53,11 @@ const Admin = () => {
   const [loading, setLoading] = useState(true);
   const [webhooksLoading, setWebhooksLoading] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState<ClientConnection | null>(null);
+  const [editingConnection, setEditingConnection] = useState<ClientConnection | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deletingWebhook, setDeletingWebhook] = useState<string | null>(null);
+  const [recreatingWebhook, setRecreatingWebhook] = useState<string | null>(null);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   const fetchConnections = async () => {
     setLoading(true);
@@ -119,13 +126,31 @@ const Admin = () => {
     setDeletingWebhook(null);
   };
 
+  const recreateWebhook = async (connection: ClientConnection) => {
+    setRecreatingWebhook(connection.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("recreate-calendly-webhook", {
+        body: { connection_id: connection.id },
+      });
+
+      if (error || !data.success) {
+        throw new Error(data?.error || error?.message);
+      }
+
+      toast.success(data.message || "Webhook recreated");
+      fetchConnections();
+    } catch (err) {
+      toast.error("Failed to recreate webhook");
+      console.error(err);
+    }
+    setRecreatingWebhook(null);
+  };
+
   const deleteConnection = async (connection: ClientConnection) => {
     setDeletingId(connection.id);
     
     try {
-      // First delete the webhook if it exists
       if (connection.calendly_webhook_id) {
-        // calendly_webhook_id is already the full URI
         await supabase.functions.invoke("delete-calendly-webhook", {
           body: {
             calendly_token: connection.calendly_token,
@@ -134,7 +159,6 @@ const Admin = () => {
         });
       }
 
-      // Then delete the connection from database
       const { error } = await supabase
         .from("client_connections")
         .delete()
@@ -154,6 +178,13 @@ const Admin = () => {
       console.error(err);
     }
     setDeletingId(null);
+  };
+
+  const copyAccessToken = (token: string | null) => {
+    if (!token) return;
+    navigator.clipboard.writeText(token);
+    setCopiedToken(token);
+    setTimeout(() => setCopiedToken(null), 2000);
   };
 
   useEffect(() => {
@@ -197,7 +228,7 @@ const Admin = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Client</TableHead>
-                        <TableHead>Location</TableHead>
+                        <TableHead>Token</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -208,22 +239,70 @@ const Admin = () => {
                           key={conn.id}
                           className={selectedConnection?.id === conn.id ? "bg-muted/50" : ""}
                         >
-                          <TableCell className="font-medium">{conn.client_name}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {conn.ghl_location_name}
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{conn.client_name}</p>
+                              <p className="text-xs text-muted-foreground">{conn.ghl_location_name}</p>
+                            </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={conn.is_active ? "default" : "secondary"}>
-                              {conn.is_active ? "Active" : "Inactive"}
-                            </Badge>
+                            {conn.access_token && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 font-mono text-xs"
+                                onClick={() => copyAccessToken(conn.access_token)}
+                              >
+                                {copiedToken === conn.access_token ? (
+                                  <Check className="h-3 w-3 mr-1 text-success" />
+                                ) : (
+                                  <Copy className="h-3 w-3 mr-1" />
+                                )}
+                                {conn.access_token}
+                              </Button>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <Badge variant={conn.is_active ? "default" : "secondary"}>
+                                {conn.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                              {!conn.ghl_api_key && (
+                                <Badge variant="outline" className="text-amber-600 border-amber-300">
+                                  No GHL Key
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingConnection(conn)}
+                                title="Edit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => recreateWebhook(conn)}
+                                disabled={recreatingWebhook === conn.id}
+                                title="Recreate Webhook"
+                              >
+                                {recreatingWebhook === conn.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="h-4 w-4" />
+                                )}
+                              </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => fetchWebhooks(conn)}
                                 disabled={webhooksLoading && selectedConnection?.id === conn.id}
+                                title="View Webhooks"
                               >
                                 <Webhook className="h-4 w-4" />
                               </Button>
@@ -340,6 +419,13 @@ const Admin = () => {
           </Card>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      <EditConnectionModal
+        connection={editingConnection}
+        onClose={() => setEditingConnection(null)}
+        onSave={fetchConnections}
+      />
     </div>
   );
 };
