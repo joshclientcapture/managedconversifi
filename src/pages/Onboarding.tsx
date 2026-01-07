@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
@@ -61,6 +62,7 @@ const DEAL_SIZES = [
 ];
 
 const Onboarding = () => {
+  const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
@@ -165,15 +167,8 @@ const Onboarding = () => {
 
       if (error) throw error;
 
-      toast.success("Onboarding form submitted successfully! We'll be in touch soon.");
-      setFormData({
-        firstName: "", lastName: "", companyName: "", email: "", phone: "",
-        linkedinUrl: "", websiteUrl: "", industry: "", hasCalendly: "",
-        country: "", streetAddress: "", cityState: "", idealClient: "",
-        companyHeadcounts: [], geography: "", industries: "", jobTitles: "",
-        problemSolved: "", successStories: "", dealSize: "", salesPerson: "", blacklistUrls: "",
-      });
-      setFiles([]);
+      // Redirect to thank you page
+      navigate("/onboarding/thank-you");
     } catch (error) {
       console.error("Submission error:", error);
       toast.error("Failed to submit form. Please try again.");
