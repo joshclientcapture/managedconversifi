@@ -50,11 +50,8 @@ const AdminManager = () => {
     const { data: { user } } = await supabase.auth.getUser();
     setCurrentUserId(user?.id || null);
     
-    // Fetch admin roles with user emails
-    const { data: roles, error } = await supabase
-      .from("user_roles")
-      .select("id, user_id, created_at")
-      .eq("role", "admin");
+    // Fetch all admin roles via edge function (bypasses RLS)
+    const { data, error } = await supabase.functions.invoke("list-admin-roles");
 
     if (error) {
       toast.error("Failed to fetch admins");
@@ -63,23 +60,7 @@ const AdminManager = () => {
       return;
     }
 
-    // Get emails from auth.users via edge function
-    const { data: usersData, error: usersError } = await supabase.functions.invoke("get-admin-users", {
-      body: { user_ids: roles?.map(r => r.user_id) || [] },
-    });
-
-    if (usersError) {
-      console.error("Failed to fetch user emails:", usersError);
-    }
-
-    const adminList: AdminUser[] = (roles || []).map(role => ({
-      id: role.id,
-      user_id: role.user_id,
-      email: usersData?.users?.find((u: { id: string; email: string }) => u.id === role.user_id)?.email || "Unknown",
-      created_at: role.created_at,
-    }));
-
-    setAdmins(adminList);
+    setAdmins(data?.admins || []);
     setLoading(false);
   };
 
