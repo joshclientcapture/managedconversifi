@@ -69,8 +69,11 @@ const AdminProtectedRoute = ({ children }: AdminProtectedRouteProps) => {
   }
 
   if (!isAdmin) {
-    toast.error("You don't have admin access");
-    return <Navigate to="/" replace />;
+    // Sign out the user so they can try a different account
+    supabase.auth.signOut().then(() => {
+      toast.error("You don't have admin access. Please log in with an admin account.");
+    });
+    return <Navigate to="/auth" replace />;
   }
 
   return <>{children}</>;
