@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        poppins: ['Poppins', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -50,6 +53,15 @@ export default {
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
+        },
+        // Conversifi status colors
+        status: {
+          active: "hsl(142 76% 36%)",
+          paused: "hsl(45 93% 47%)",
+          completed: "hsl(221 83% 53%)",
+          draft: "hsl(215 16% 47%)",
+          "rate-limited": "hsl(199 89% 48%)",
+          ready: "hsl(45 93% 47%)",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
