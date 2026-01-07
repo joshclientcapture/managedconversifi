@@ -212,7 +212,7 @@ const OnboardingList = () => {
 
       {/* Detail Modal */}
       <Dialog open={!!selectedSubmission} onOpenChange={() => setSelectedSubmission(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selectedSubmission?.first_name} {selectedSubmission?.last_name} - {selectedSubmission?.company_name}
@@ -220,142 +220,150 @@ const OnboardingList = () => {
           </DialogHeader>
           {selectedSubmission && (
             <div className="space-y-6">
-              {/* Contact Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Email</p>
-                  <p>{selectedSubmission.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                  <p>{selectedSubmission.phone}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">LinkedIn</p>
-                  <a href={selectedSubmission.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
-                    {selectedSubmission.linkedin_url}
-                  </a>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Website</p>
-                  <a href={selectedSubmission.website_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
-                    {selectedSubmission.website_url}
-                  </a>
-                </div>
-              </div>
-
-              {/* Business Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Industry</p>
-                  <p>{selectedSubmission.industry}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Calendly Account</p>
-                  <Badge variant={selectedSubmission.has_calendly === "yes" ? "default" : "secondary"}>
-                    {selectedSubmission.has_calendly === "yes" ? "Has Account" : "Will Create"}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Deal Size</p>
-                  <p>{selectedSubmission.deal_size || "Not specified"}</p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Sales Person</p>
-                  <p>{selectedSubmission.sales_person || "Not specified"}</p>
-                </div>
-              </div>
-
-              {/* Address */}
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Address</p>
-                <p>{selectedSubmission.street_address}</p>
-                <p>{selectedSubmission.city_state}, {selectedSubmission.country}</p>
-              </div>
-
-              {/* Target Info */}
-              {selectedSubmission.company_headcounts && Array.isArray(selectedSubmission.company_headcounts) && selectedSubmission.company_headcounts.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Target Company Sizes</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(selectedSubmission.company_headcounts as string[]).map((size) => (
-                      <Badge key={size} variant="outline">{size}</Badge>
-                    ))}
+              {/* Contact Info Section */}
+              <div className="rounded-lg border border-border p-4 space-y-4">
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Contact Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Email</p>
+                    <p className="text-sm break-all">{selectedSubmission.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Phone</p>
+                    <p className="text-sm">{selectedSubmission.phone}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">LinkedIn</p>
+                    <a href={selectedSubmission.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">
+                      {selectedSubmission.linkedin_url}
+                    </a>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Website</p>
+                    <a href={selectedSubmission.website_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">
+                      {selectedSubmission.website_url}
+                    </a>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {selectedSubmission.geography && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Target Geography</p>
-                  <p>{selectedSubmission.geography}</p>
+              {/* Business Info Section */}
+              <div className="rounded-lg border border-border p-4 space-y-4">
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Business Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Industry</p>
+                    <p className="text-sm">{selectedSubmission.industry}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Calendly Account</p>
+                    <Badge variant={selectedSubmission.has_calendly === "yes" ? "default" : "secondary"}>
+                      {selectedSubmission.has_calendly === "yes" ? "Has Account" : "Will Create"}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Deal Size</p>
+                    <p className="text-sm">{selectedSubmission.deal_size || "Not specified"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Sales Person</p>
+                    <p className="text-sm">{selectedSubmission.sales_person || "Not specified"}</p>
+                  </div>
                 </div>
-              )}
-
-              {selectedSubmission.industries && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Target Industries</p>
-                  <p>{selectedSubmission.industries}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Address</p>
+                  <p className="text-sm">{selectedSubmission.street_address}</p>
+                  <p className="text-sm">{selectedSubmission.city_state}, {selectedSubmission.country}</p>
                 </div>
-              )}
+              </div>
 
-              {selectedSubmission.job_titles && (
+              {/* Ideal Client Profile Section */}
+              <div className="rounded-lg border border-border p-4 space-y-4">
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Ideal Client Profile</h3>
+                
+                {selectedSubmission.company_headcounts && Array.isArray(selectedSubmission.company_headcounts) && selectedSubmission.company_headcounts.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Target Company Sizes</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(selectedSubmission.company_headcounts as string[]).map((size) => (
+                        <Badge key={size} variant="outline">{size}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Target Job Titles</p>
-                  <p>{selectedSubmission.job_titles}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Target Geography</p>
+                  <p className="text-sm">{selectedSubmission.geography || "Not specified"}</p>
                 </div>
-              )}
 
-              {/* Long Text Fields */}
-              {selectedSubmission.ideal_client && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Ideal Client Description</p>
-                  <p className="whitespace-pre-wrap text-sm">{selectedSubmission.ideal_client}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Target Industries</p>
+                  <p className="text-sm">{selectedSubmission.industries || "Not specified"}</p>
                 </div>
-              )}
 
-              {selectedSubmission.problem_solved && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Problem Solved</p>
-                  <p className="whitespace-pre-wrap text-sm">{selectedSubmission.problem_solved}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Target Job Titles</p>
+                  <p className="text-sm">{selectedSubmission.job_titles || "Not specified"}</p>
                 </div>
-              )}
 
-              {selectedSubmission.success_stories && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Success Stories</p>
-                  <p className="whitespace-pre-wrap text-sm">{selectedSubmission.success_stories}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Ideal Client Description</p>
+                  <div className="text-sm bg-muted/50 rounded-md p-3 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+                    {selectedSubmission.ideal_client || "Not specified"}
+                  </div>
                 </div>
-              )}
 
-              {selectedSubmission.blacklist_urls && (
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Blacklisted URLs</p>
-                  <p className="whitespace-pre-wrap text-sm font-mono">{selectedSubmission.blacklist_urls}</p>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Problem Solved</p>
+                  <div className="text-sm bg-muted/50 rounded-md p-3 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+                    {selectedSubmission.problem_solved || "Not specified"}
+                  </div>
                 </div>
-              )}
+              </div>
 
-              {/* Files */}
+              {/* Success Stories Section */}
+              <div className="rounded-lg border border-border p-4 space-y-4">
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Success Stories</h3>
+                <div className="text-sm bg-muted/50 rounded-md p-3 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+                  {selectedSubmission.success_stories || "Not specified"}
+                </div>
+              </div>
+
+              {/* Blacklist Section */}
+              <div className="rounded-lg border border-border p-4 space-y-4">
+                <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Blacklisted URLs</h3>
+                <div className="text-sm font-mono bg-muted/50 rounded-md p-3 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                  {selectedSubmission.blacklist_urls || "None specified"}
+                </div>
+              </div>
+
+              {/* Files Section */}
               {selectedSubmission.file_urls && Array.isArray(selectedSubmission.file_urls) && selectedSubmission.file_urls.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Uploaded Files</p>
+                <div className="rounded-lg border border-border p-4 space-y-4">
+                  <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Uploaded Files</h3>
                   <div className="space-y-2">
                     {(selectedSubmission.file_urls as string[]).map((filePath, index) => (
                       <Button
                         key={index}
                         variant="outline"
                         size="sm"
-                        className="w-full justify-start"
+                        className="w-full justify-start overflow-hidden"
                         onClick={() => downloadFile(filePath)}
                       >
-                        <FileText className="h-4 w-4 mr-2" />
-                        {filePath.split("/").pop()}
-                        <Download className="h-4 w-4 ml-auto" />
+                        <FileText className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <span className="truncate">{filePath.split("/").pop()}</span>
+                        <Download className="h-4 w-4 ml-auto flex-shrink-0" />
                       </Button>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* Submitted Date */}
+              <div className="text-xs text-muted-foreground text-center pt-2 border-t border-border">
+                Submitted on {format(new Date(selectedSubmission.created_at), "MMMM d, yyyy 'at' h:mm a")}
+              </div>
             </div>
           )}
         </DialogContent>
