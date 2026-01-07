@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Upload, FileText, Trash2, Pencil, X, Check, ExternalLink, Calendar } from "lucide-react";
+import { Loader2, Upload, FileText, Trash2, Pencil, X, Check, Download, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 
@@ -340,10 +340,17 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => window.open(report.report_url, "_blank")}
-                              title="View report"
+                              onClick={() => {
+                                const link = document.createElement("a");
+                                link.href = report.report_url;
+                                link.download = `${report.report_name}.pdf`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              }}
+                              title="Download report"
                             >
-                              <ExternalLink className="h-4 w-4" />
+                              <Download className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
