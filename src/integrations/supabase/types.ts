@@ -219,6 +219,41 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          client_connection_id: string
+          created_at: string
+          id: string
+          report_date: string
+          report_name: string
+          report_url: string
+        }
+        Insert: {
+          client_connection_id: string
+          created_at?: string
+          id?: string
+          report_date: string
+          report_name: string
+          report_url: string
+        }
+        Update: {
+          client_connection_id?: string
+          created_at?: string
+          id?: string
+          report_date?: string
+          report_name?: string
+          report_url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_client_connection_id_fkey"
+            columns: ["client_connection_id"]
+            isOneToOne: false
+            referencedRelation: "client_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
