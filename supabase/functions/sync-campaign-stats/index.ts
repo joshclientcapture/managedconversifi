@@ -101,48 +101,51 @@ serve(async (req) => {
         const responseData = await response.json();
         console.log(`Received stats for ${connection.client_name}:`, JSON.stringify(responseData).slice(0, 500));
 
-        // Parse Conversifi response format:
+        // Parse NEW Conversifi response format with periods:
         // { status: 200, data: { success: true, data: { campaigns: [...], totals: {...} } } }
+        // Each campaign has periods: { all_time: {...}, last_7_days: {...}, last_14_days: {...}, last_30_days: {...} }
         const statsData = responseData?.data?.data || responseData?.data || responseData;
         const campaigns = statsData?.campaigns || [];
         const totals = statsData?.totals || {};
 
-        // Calculate aggregated stats from campaigns
-        let totalProspects = totals.total_prospects || 0;
-        let totalSent = totals.total_sent || 0;
-        let totalResponses = totals.total_responses || 0;
-        let totalConnectionsMade = 0;
-        let totalPendingRequests = 0;
-        let avgAcceptanceRate = 0;
-        let avgResponseRate = 0;
+        // Use all_time totals for the main stats columns
+        const allTimeTotals = totals.all_time || totals || {};
 
-        if (campaigns.length > 0) {
-          for (const campaign of campaigns) {
-            const stats = campaign.stats || {};
-            totalConnectionsMade += stats.connections_accepted || 0;
-            totalPendingRequests += stats.pending_requests || 0;
-          }
-          // Calculate average rates
-          const rates = campaigns.map((c: any) => c.stats || {});
-          avgAcceptanceRate = rates.reduce((sum: number, s: any) => sum + (s.acceptance_rate || 0), 0) / campaigns.length;
-          avgResponseRate = rates.reduce((sum: number, s: any) => sum + (s.response_rate || 0), 0) / campaigns.length;
+        // Calculate aggregated stats from all_time totals
+        const totalProspects = allTimeTotals.total_prospects || 0;
+        const totalSent = allTimeTotals.total_sent || 0;
+        const totalResponses = allTimeTotals.total_responses || 0;
+        const connectionsMade = allTimeTotals.connections_accepted || 0;
+        const pendingRequests = totalSent - connectionsMade > 0 ? totalSent - connectionsMade : 0;
+        const acceptanceRate = allTimeTotals.acceptance_rate || 0;
+        const responseRate = allTimeTotals.response_rate || 0;
+
+        // Calculate messages sent (inmails + follow-up messages) from campaigns
+        let messagesSent = 0;
+        for (const campaign of campaigns) {
+          const allTimeStats = campaign?.periods?.all_time?.stats || campaign?.stats || {};
+          messagesSent += (allTimeStats.inmails_sent || 0) + (allTimeStats.messages_sent || 0);
         }
 
-        // Fallback for old response format
+        // If no campaign period data, try totals
+        if (messagesSent === 0 && allTimeTotals.inmails_sent) {
+          messagesSent = allTimeTotals.inmails_sent;
+        }
+
         const stats = {
-          messages_sent: totalSent || responseData.messages_sent || responseData.messagesSent || 0,
-          replies_received: totalResponses || responseData.replies_received || responseData.repliesReceived || 0,
-          connections_made: totalConnectionsMade || responseData.connections_made || responseData.connectionsMade || 0,
-          meetings_booked: responseData.meetings_booked || responseData.meetingsBooked || 0,
+          messages_sent: messagesSent,
+          replies_received: totalResponses,
+          connections_made: connectionsMade,
+          meetings_booked: allTimeTotals.meetings_booked || 0,
           total_prospects: totalProspects,
           total_sent: totalSent,
           total_responses: totalResponses,
-          pending_requests: totalPendingRequests,
-          acceptance_rate: avgAcceptanceRate,
-          response_rate: avgResponseRate,
+          pending_requests: pendingRequests,
+          acceptance_rate: acceptanceRate,
+          response_rate: responseRate,
         };
 
-        // Upsert campaign stats for today with full data
+        // Upsert campaign stats for today with full data including periods
         const { error: upsertError } = await supabase
           .from('campaign_stats')
           .upsert({
@@ -159,7 +162,11 @@ serve(async (req) => {
             pending_requests: stats.pending_requests,
             acceptance_rate: stats.acceptance_rate,
             response_rate: stats.response_rate,
-            campaign_data: statsData // Store full response for detailed view
+            campaign_data: {
+              campaigns: campaigns,
+              totals: totals,
+              synced_at: new Date().toISOString()
+            }
           }, {
             onConflict: 'client_connection_id,date'
           });
@@ -178,7 +185,8 @@ serve(async (req) => {
             client: connection.client_name,
             access_token: connection.access_token,
             success: true,
-            stats
+            stats,
+            periods: Object.keys(totals)
           });
         }
 

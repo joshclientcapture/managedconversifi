@@ -445,7 +445,29 @@ const IntegrationForm = () => {
           {!connectionSuccess && (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-                {/* Access Token Display */}
+                {/* Client Name Field - First */}
+                <FormField
+                  control={form.control}
+                  name="clientName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground font-medium">Client Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter client or company name"
+                          className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        This name will be used to identify the client across all integrations
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Access Token Display - Second */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-foreground">Access Token</label>
@@ -483,27 +505,7 @@ const IntegrationForm = () => {
                   </p>
                 </div>
 
-                {/* Client Name Field */}
-                <FormField
-                  control={form.control}
-                  name="clientName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-foreground font-medium">Client Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Enter client or company name"
-                          className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription className="text-xs text-muted-foreground">
-                        This name will be used to identify the client in the admin dashboard
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Calendly Token Field */}
 
                 <FormField
                   control={form.control}
