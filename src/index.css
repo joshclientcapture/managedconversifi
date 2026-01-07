@@ -98,6 +98,12 @@
     --gradient-bg: linear-gradient(135deg, hsl(0 0% 9%) 0%, hsl(0 0% 12%) 100%);
     --gradient-primary: linear-gradient(135deg, hsl(220 70% 35%) 0%, hsl(220 70% 45%) 100%);
     --gradient-card: linear-gradient(180deg, hsl(0 0% 12%) 0%, hsl(0 0% 14%) 100%);
+    --gradient-hero: linear-gradient(to top, 
+      hsla(220, 70%, 35%, 0.4) 0%,
+      hsla(220, 70%, 35%, 0.15) 25%,
+      hsla(220, 70%, 35%, 0.05) 45%,
+      hsl(0, 0%, 9%) 60%
+    );
 
     --shadow-card: 0 4px 30px hsla(0, 0%, 0%, 0.3);
     --shadow-card-hover: 0 10px 40px hsla(220, 70%, 35%, 0.2);
