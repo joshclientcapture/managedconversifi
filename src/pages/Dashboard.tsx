@@ -10,6 +10,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import StatsOverview from "@/components/dashboard/StatsOverview";
 import BookingsTable from "@/components/dashboard/BookingsTable";
 import CampaignCards from "@/components/dashboard/CampaignCards";
+import Header from "@/components/Header";
 import conversifiLogo from "@/assets/conversifi-logo.svg";
 
 interface DashboardData {
@@ -171,13 +172,15 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen py-6 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">{data.connection.client_name}</h1>
-            <p className="text-muted-foreground">Campaign Performance Dashboard</p>
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-1 py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+              <h1 className="text-3xl font-semibold text-foreground">{data.connection.client_name}</h1>
+              <p className="text-muted-foreground">Campaign Performance Dashboard</p>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -244,7 +247,8 @@ const Dashboard = () => {
             />
           </TabsContent>
         </Tabs>
-      </div>
+        </div>
+      </main>
     </div>
   );
 };

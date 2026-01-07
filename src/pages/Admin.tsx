@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, RefreshCw, Webhook, ArrowLeft, Pencil, RotateCcw, Copy, Check, Loader2 } from "lucide-react";
+import { Trash2, RefreshCw, Webhook, Pencil, RotateCcw, Copy, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import EditConnectionModal from "@/components/EditConnectionModal";
+import Header from "@/components/Header";
 
 interface ClientConnection {
   id: string;
@@ -192,22 +192,17 @@ const Admin = () => {
   }, []);
 
   return (
-    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link to="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Admin Dashboard</h1>
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-semibold text-foreground">Admin Dashboard</h1>
             <p className="text-muted-foreground">Manage client connections and webhooks</p>
           </div>
-        </div>
 
-        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2">
           {/* Connections Table */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -417,15 +412,16 @@ const Admin = () => {
               )}
             </CardContent>
           </Card>
-        </div>
-      </div>
+          </div>
 
-      {/* Edit Modal */}
-      <EditConnectionModal
-        connection={editingConnection}
-        onClose={() => setEditingConnection(null)}
-        onSave={fetchConnections}
-      />
+          {/* Edit Modal */}
+          <EditConnectionModal
+            connection={editingConnection}
+            onClose={() => setEditingConnection(null)}
+            onSave={fetchConnections}
+          />
+        </div>
+      </main>
     </div>
   );
 };
