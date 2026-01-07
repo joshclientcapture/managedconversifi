@@ -1,1 +1,40 @@
 project_id = "ifnxhardrbzrtoghhfcr"
+
+[functions.calendly-webhook]
+verify_jwt = false
+
+[functions.delete-calendly-webhook]
+verify_jwt = false
+
+[functions.get-calendly-event-types]
+verify_jwt = false
+
+[functions.get-calendly-info]
+verify_jwt = false
+
+[functions.get-ghl-locations]
+verify_jwt = false
+
+[functions.get-slack-channels]
+verify_jwt = false
+
+[functions.list-calendly-webhooks]
+verify_jwt = false
+
+[functions.setup-client]
+verify_jwt = false
+
+[functions.sync-campaign-stats]
+verify_jwt = false
+
+[functions.validate-conversifi]
+verify_jwt = false
+
+[functions.get-client-dashboard]
+verify_jwt = false
+
+[functions.recreate-calendly-webhook]
+verify_jwt = false
+
+[functions.update-booking]
+verify_jwt = false

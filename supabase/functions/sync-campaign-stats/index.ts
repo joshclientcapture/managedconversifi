@@ -77,18 +77,51 @@ serve(async (req) => {
           continue;
         }
 
-        const statsData = await response.json();
-        console.log(`Received stats for ${connection.client_name}:`, JSON.stringify(statsData).slice(0, 200));
+        const responseData = await response.json();
+        console.log(`Received stats for ${connection.client_name}:`, JSON.stringify(responseData).slice(0, 500));
 
-        // Extract stats from response (handle various response formats)
+        // Parse Conversifi response format:
+        // { status: 200, data: { success: true, data: { campaigns: [...], totals: {...} } } }
+        const statsData = responseData?.data?.data || responseData?.data || responseData;
+        const campaigns = statsData?.campaigns || [];
+        const totals = statsData?.totals || {};
+
+        // Calculate aggregated stats from campaigns
+        let totalProspects = totals.total_prospects || 0;
+        let totalSent = totals.total_sent || 0;
+        let totalResponses = totals.total_responses || 0;
+        let totalConnectionsMade = 0;
+        let totalPendingRequests = 0;
+        let avgAcceptanceRate = 0;
+        let avgResponseRate = 0;
+
+        if (campaigns.length > 0) {
+          for (const campaign of campaigns) {
+            const stats = campaign.stats || {};
+            totalConnectionsMade += stats.connections_accepted || 0;
+            totalPendingRequests += stats.pending_requests || 0;
+          }
+          // Calculate average rates
+          const rates = campaigns.map((c: any) => c.stats || {});
+          avgAcceptanceRate = rates.reduce((sum: number, s: any) => sum + (s.acceptance_rate || 0), 0) / campaigns.length;
+          avgResponseRate = rates.reduce((sum: number, s: any) => sum + (s.response_rate || 0), 0) / campaigns.length;
+        }
+
+        // Fallback for old response format
         const stats = {
-          messages_sent: statsData.messages_sent || statsData.messagesSent || statsData.total_messages || 0,
-          replies_received: statsData.replies_received || statsData.repliesReceived || statsData.total_replies || 0,
-          connections_made: statsData.connections_made || statsData.connectionsMade || statsData.total_connections || 0,
-          meetings_booked: statsData.meetings_booked || statsData.meetingsBooked || 0,
+          messages_sent: totalSent || responseData.messages_sent || responseData.messagesSent || 0,
+          replies_received: totalResponses || responseData.replies_received || responseData.repliesReceived || 0,
+          connections_made: totalConnectionsMade || responseData.connections_made || responseData.connectionsMade || 0,
+          meetings_booked: responseData.meetings_booked || responseData.meetingsBooked || 0,
+          total_prospects: totalProspects,
+          total_sent: totalSent,
+          total_responses: totalResponses,
+          pending_requests: totalPendingRequests,
+          acceptance_rate: avgAcceptanceRate,
+          response_rate: avgResponseRate,
         };
 
-        // Upsert campaign stats for today with access_token
+        // Upsert campaign stats for today with full data
         const { error: upsertError } = await supabase
           .from('campaign_stats')
           .upsert({
@@ -99,7 +132,13 @@ serve(async (req) => {
             replies_received: stats.replies_received,
             connections_made: stats.connections_made,
             meetings_booked: stats.meetings_booked,
-            campaign_data: statsData
+            total_prospects: stats.total_prospects,
+            total_sent: stats.total_sent,
+            total_responses: stats.total_responses,
+            pending_requests: stats.pending_requests,
+            acceptance_rate: stats.acceptance_rate,
+            response_rate: stats.response_rate,
+            campaign_data: statsData // Store full response for detailed view
           }, {
             onConflict: 'client_connection_id,date'
           });

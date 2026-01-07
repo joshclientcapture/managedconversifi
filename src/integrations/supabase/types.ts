@@ -20,7 +20,10 @@ export type Database = {
           calendly_event_id: string | null
           calendly_event_uri: string | null
           calendly_invitee_uri: string | null
+          call_outcome: string | null
+          cancel_url: string | null
           client_connection_id: string
+          closer_notes: string | null
           contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
@@ -32,13 +35,18 @@ export type Database = {
           event_type_uri: string | null
           id: string
           raw_payload: Json | null
+          reschedule_url: string | null
+          showed_up: boolean | null
         }
         Insert: {
           access_token?: string | null
           calendly_event_id?: string | null
           calendly_event_uri?: string | null
           calendly_invitee_uri?: string | null
+          call_outcome?: string | null
+          cancel_url?: string | null
           client_connection_id: string
+          closer_notes?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
@@ -50,13 +58,18 @@ export type Database = {
           event_type_uri?: string | null
           id?: string
           raw_payload?: Json | null
+          reschedule_url?: string | null
+          showed_up?: boolean | null
         }
         Update: {
           access_token?: string | null
           calendly_event_id?: string | null
           calendly_event_uri?: string | null
           calendly_invitee_uri?: string | null
+          call_outcome?: string | null
+          cancel_url?: string | null
           client_connection_id?: string
+          closer_notes?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
@@ -68,6 +81,8 @@ export type Database = {
           event_type_uri?: string | null
           id?: string
           raw_payload?: Json | null
+          reschedule_url?: string | null
+          showed_up?: boolean | null
         }
         Relationships: [
           {
@@ -81,6 +96,7 @@ export type Database = {
       }
       campaign_stats: {
         Row: {
+          acceptance_rate: number | null
           access_token: string | null
           campaign_data: Json | null
           client_connection_id: string
@@ -90,9 +106,15 @@ export type Database = {
           id: string
           meetings_booked: number | null
           messages_sent: number | null
+          pending_requests: number | null
           replies_received: number | null
+          response_rate: number | null
+          total_prospects: number | null
+          total_responses: number | null
+          total_sent: number | null
         }
         Insert: {
+          acceptance_rate?: number | null
           access_token?: string | null
           campaign_data?: Json | null
           client_connection_id: string
@@ -102,9 +124,15 @@ export type Database = {
           id?: string
           meetings_booked?: number | null
           messages_sent?: number | null
+          pending_requests?: number | null
           replies_received?: number | null
+          response_rate?: number | null
+          total_prospects?: number | null
+          total_responses?: number | null
+          total_sent?: number | null
         }
         Update: {
+          acceptance_rate?: number | null
           access_token?: string | null
           campaign_data?: Json | null
           client_connection_id?: string
@@ -114,7 +142,12 @@ export type Database = {
           id?: string
           meetings_booked?: number | null
           messages_sent?: number | null
+          pending_requests?: number | null
           replies_received?: number | null
+          response_rate?: number | null
+          total_prospects?: number | null
+          total_responses?: number | null
+          total_sent?: number | null
         }
         Relationships: [
           {
