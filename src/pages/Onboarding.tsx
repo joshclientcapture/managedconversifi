@@ -16,7 +16,14 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Upload, User, Target, Briefcase, FileText, Send } from "lucide-react";
+import { Upload, User, Target, Briefcase, FileText, Send, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+const MIN_CHAR_LIMITS = {
+  idealClient: 150,
+  problemSolved: 150,
+  successStories: 100,
+};
 
 const INDUSTRIES = [
   "Technology & SaaS",
@@ -121,6 +128,23 @@ const Onboarding = () => {
       return;
     }
 
+    // Check minimum character limits
+    if (formData.idealClient.length < MIN_CHAR_LIMITS.idealClient) {
+      toast.error(`Ideal client description needs at least ${MIN_CHAR_LIMITS.idealClient} characters`);
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.problemSolved.length < MIN_CHAR_LIMITS.problemSolved) {
+      toast.error(`Problem solved description needs at least ${MIN_CHAR_LIMITS.problemSolved} characters`);
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.successStories.length < MIN_CHAR_LIMITS.successStories) {
+      toast.error(`Success stories need at least ${MIN_CHAR_LIMITS.successStories} characters`);
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const formDataToSend = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
@@ -171,6 +195,14 @@ const Onboarding = () => {
               Tell us about your business so we can tailor our services to your needs
             </p>
           </div>
+
+          {/* Detail Banner */}
+          <Alert className="bg-primary/5 border-primary/20 mb-8">
+            <AlertCircle className="h-5 w-5 text-primary" />
+            <AlertDescription className="text-foreground">
+              <strong>Quality matters!</strong> The more detail you provide, the better we can represent your brand and connect you with the right prospects. Please take your time to answer each question thoroughly.
+            </AlertDescription>
+          </Alert>
 
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Basic Information */}
@@ -338,7 +370,111 @@ const Onboarding = () => {
               </CardContent>
             </Card>
 
-            {/* Ideal Client */}
+            {/* Business Details - MOVED BEFORE ICP */}
+            <Card className="glass-panel border-0">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Briefcase className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle>Business Details</CardTitle>
+                    <CardDescription>Tell us about your services and results</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="problemSolved">What problem do you solve? *</Label>
+                    <span className={`text-xs ${formData.problemSolved.length < MIN_CHAR_LIMITS.problemSolved ? "text-destructive" : "text-muted-foreground"}`}>
+                      {formData.problemSolved.length}/{MIN_CHAR_LIMITS.problemSolved} min
+                    </span>
+                  </div>
+                  <Textarea
+                    id="problemSolved"
+                    value={formData.problemSolved}
+                    onChange={(e) => handleInputChange("problemSolved", e.target.value)}
+                    placeholder="Describe the main problem you solve and the result your clients get..."
+                    rows={5}
+                    className={formData.problemSolved.length > 0 && formData.problemSolved.length < MIN_CHAR_LIMITS.problemSolved ? "border-destructive" : ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Be specific. Include what you help them achieve, how you help them save time or money, and why your solution is better. More detail helps Conversifi talk like you.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="successStories">Best client results and success stories *</Label>
+                    <span className={`text-xs ${formData.successStories.length < MIN_CHAR_LIMITS.successStories ? "text-destructive" : "text-muted-foreground"}`}>
+                      {formData.successStories.length}/{MIN_CHAR_LIMITS.successStories} min
+                    </span>
+                  </div>
+                  <Textarea
+                    id="successStories"
+                    value={formData.successStories}
+                    onChange={(e) => handleInputChange("successStories", e.target.value)}
+                    placeholder="Include specific metrics (e.g., 30% more leads, $50k revenue growth) and real examples..."
+                    rows={5}
+                    className={formData.successStories.length > 0 && formData.successStories.length < MIN_CHAR_LIMITS.successStories ? "border-destructive" : ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Mention the client type, result, and timeframe if possible. The more specific, the better Conversifi can write credible, result-driven messages.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Average client value or deal size</Label>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Choose the price range that best represents what a new client is worth to your business.
+                  </p>
+                  <RadioGroup
+                    value={formData.dealSize}
+                    onValueChange={(value) => handleInputChange("dealSize", value)}
+                    className="grid grid-cols-2 sm:grid-cols-3 gap-3"
+                  >
+                    {DEAL_SIZES.map((size) => (
+                      <div
+                        key={size}
+                        className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary/30 transition-colors"
+                      >
+                        <RadioGroupItem value={size} id={`deal-${size}`} />
+                        <Label htmlFor={`deal-${size}`} className="font-normal cursor-pointer text-sm">
+                          {size}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="salesPerson">Who takes the sales calls?</Label>
+                  <Input
+                    id="salesPerson"
+                    value={formData.salesPerson}
+                    onChange={(e) => handleInputChange("salesPerson", e.target.value)}
+                    placeholder="Full name of the person taking calls"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This name is used whenever a prospect asks who the call will be with, or when someone other than the LinkedIn account owner is taking the call.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="blacklistUrls">LinkedIn Profile Blacklist</Label>
+                  <Textarea
+                    id="blacklistUrls"
+                    value={formData.blacklistUrls}
+                    onChange={(e) => handleInputChange("blacklistUrls", e.target.value)}
+                    placeholder="List any LinkedIn Profile URLs that you do NOT want to contact (one per line)"
+                    rows={3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Ideal Client Profile - MOVED AFTER BUSINESS DETAILS */}
             <Card className="glass-panel border-0">
               <CardHeader>
                 <div className="flex items-center gap-3">
@@ -353,16 +489,22 @@ const Onboarding = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="idealClient">Describe your ideal client</Label>
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="idealClient">Describe your ideal client *</Label>
+                    <span className={`text-xs ${formData.idealClient.length < MIN_CHAR_LIMITS.idealClient ? "text-destructive" : "text-muted-foreground"}`}>
+                      {formData.idealClient.length}/{MIN_CHAR_LIMITS.idealClient} min
+                    </span>
+                  </div>
                   <Textarea
                     id="idealClient"
                     value={formData.idealClient}
                     onChange={(e) => handleInputChange("idealClient", e.target.value)}
                     placeholder="Add things like their role, industry, company size, where they're based, and their main pain points..."
-                    rows={4}
+                    rows={5}
+                    className={formData.idealClient.length > 0 && formData.idealClient.length < MIN_CHAR_LIMITS.idealClient ? "border-destructive" : ""}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Describe your ideal client in as much detail as you can.
+                    Describe your ideal client in as much detail as you can. Include role, industry, company size, location, and pain points.
                   </p>
                 </div>
 
@@ -423,98 +565,6 @@ const Onboarding = () => {
                     value={formData.jobTitles}
                     onChange={(e) => handleInputChange("jobTitles", e.target.value)}
                     placeholder="e.g., CEO, VP of Sales, Marketing Director"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Business Details */}
-            <Card className="glass-panel border-0">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Briefcase className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle>Business Details</CardTitle>
-                    <CardDescription>Tell us about your services and results</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="problemSolved">What problem do you solve?</Label>
-                  <Textarea
-                    id="problemSolved"
-                    value={formData.problemSolved}
-                    onChange={(e) => handleInputChange("problemSolved", e.target.value)}
-                    placeholder="Describe the main problem you solve and the result your clients get..."
-                    rows={4}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Be specific. Include what you help them achieve, how you help them save time or money, and why your solution is better. More detail helps Conversifi talk like you.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="successStories">Best client results and success stories</Label>
-                  <Textarea
-                    id="successStories"
-                    value={formData.successStories}
-                    onChange={(e) => handleInputChange("successStories", e.target.value)}
-                    placeholder="Include specific metrics (e.g., 30% more leads, $50k revenue growth) and real examples..."
-                    rows={4}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Mention the client type, result, and timeframe if possible. The more specific, the better Conversifi can write credible, result-driven messages.
-                  </p>
-                </div>
-
-                <div className="space-y-3">
-                  <Label>Average client value or deal size</Label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Choose the price range that best represents what a new client is worth to your business.
-                  </p>
-                  <RadioGroup
-                    value={formData.dealSize}
-                    onValueChange={(value) => handleInputChange("dealSize", value)}
-                    className="grid grid-cols-2 sm:grid-cols-3 gap-3"
-                  >
-                    {DEAL_SIZES.map((size) => (
-                      <div
-                        key={size}
-                        className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary/30 transition-colors"
-                      >
-                        <RadioGroupItem value={size} id={`deal-${size}`} />
-                        <Label htmlFor={`deal-${size}`} className="font-normal cursor-pointer text-sm">
-                          {size}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="salesPerson">Who takes the sales calls?</Label>
-                  <Input
-                    id="salesPerson"
-                    value={formData.salesPerson}
-                    onChange={(e) => handleInputChange("salesPerson", e.target.value)}
-                    placeholder="Full name of the person taking calls"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    This name is used whenever a prospect asks who the call will be with, or when someone other than the LinkedIn account owner is taking the call.
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="blacklistUrls">LinkedIn Profile Blacklist</Label>
-                  <Textarea
-                    id="blacklistUrls"
-                    value={formData.blacklistUrls}
-                    onChange={(e) => handleInputChange("blacklistUrls", e.target.value)}
-                    placeholder="List any LinkedIn Profile URLs that you do NOT want to contact (one per line)"
-                    rows={3}
                   />
                 </div>
               </CardContent>
