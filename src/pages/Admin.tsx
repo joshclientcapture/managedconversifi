@@ -20,6 +20,7 @@ import {
 import EditConnectionModal from "@/components/EditConnectionModal";
 import WebhookDetailsDialog from "@/components/admin/WebhookDetailsDialog";
 import ReportUploader from "@/components/admin/ReportUploader";
+import AdminManager from "@/components/admin/AdminManager";
 import Header from "@/components/Header";
 
 interface ClientConnection {
@@ -282,6 +283,11 @@ const Admin = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Admin Users Management */}
+          <div className="mt-8">
+            <AdminManager />
+          </div>
 
           {/* Modals */}
           <EditConnectionModal
