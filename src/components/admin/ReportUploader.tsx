@@ -18,12 +18,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Upload, FileText } from "lucide-react";
+import { Loader2, Upload, FileText, Trash2, Pencil, X, Check } from "lucide-react";
 import { toast } from "sonner";
+import { Separator } from "@/components/ui/separator";
 
 interface ClientConnection {
   id: string;
   client_name: string;
+}
+
+interface Report {
+  id: string;
+  report_name: string;
+  report_date: string;
+  report_url: string;
 }
 
 interface ReportUploaderProps {
@@ -39,6 +47,13 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
   const [reportName, setReportName] = useState("");
   const [reportDate, setReportDate] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  
+  // Existing reports state
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+  const [editingReportId, setEditingReportId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
 
   // Update selection when preselectedConnectionId changes
   useEffect(() => {
@@ -46,6 +61,36 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
       setSelectedConnection(preselectedConnectionId);
     }
   }, [preselectedConnectionId]);
+
+  // Fetch reports when connection changes
+  useEffect(() => {
+    if (selectedConnection && open) {
+      fetchReports();
+    } else {
+      setReports([]);
+    }
+  }, [selectedConnection, open]);
+
+  const fetchReports = async () => {
+    if (!selectedConnection) return;
+    
+    setLoadingReports(true);
+    try {
+      const { data, error } = await supabase
+        .from("reports")
+        .select("id, report_name, report_date, report_url")
+        .eq("client_connection_id", selectedConnection)
+        .order("report_date", { ascending: false });
+
+      if (error) throw error;
+      setReports(data || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load reports");
+    } finally {
+      setLoadingReports(false);
+    }
+  };
 
   const handleUpload = async () => {
     if (!selectedConnection || !reportName || !reportDate || !file) {
@@ -83,8 +128,10 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
       if (insertError) throw insertError;
 
       toast.success("Report uploaded successfully");
-      handleReset();
-      onClose();
+      setReportName("");
+      setReportDate("");
+      setFile(null);
+      fetchReports();
     } catch (err) {
       console.error(err);
       toast.error("Failed to upload report");
@@ -93,23 +140,70 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
     }
   };
 
-  const handleReset = () => {
-    setSelectedConnection("");
-    setReportName("");
-    setReportDate("");
-    setFile(null);
+  const handleRename = async (reportId: string) => {
+    if (!editingName.trim()) {
+      toast.error("Report name cannot be empty");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("reports")
+        .update({ report_name: editingName })
+        .eq("id", reportId);
+
+      if (error) throw error;
+
+      toast.success("Report renamed");
+      setEditingReportId(null);
+      setEditingName("");
+      fetchReports();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to rename report");
+    }
+  };
+
+  const handleDelete = async (reportId: string) => {
+    setDeletingReportId(reportId);
+    try {
+      const { error } = await supabase
+        .from("reports")
+        .delete()
+        .eq("id", reportId);
+
+      if (error) throw error;
+
+      toast.success("Report deleted");
+      fetchReports();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete report");
+    } finally {
+      setDeletingReportId(null);
+    }
+  };
+
+  const startEditing = (report: Report) => {
+    setEditingReportId(report.id);
+    setEditingName(report.report_name);
+  };
+
+  const cancelEditing = () => {
+    setEditingReportId(null);
+    setEditingName("");
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Upload Report
+            Manage Reports
           </DialogTitle>
           <DialogDescription>
-            Upload a bi-weekly report for a client
+            Upload, rename, or delete reports for this client
           </DialogDescription>
         </DialogHeader>
 
@@ -128,6 +222,93 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Existing Reports */}
+          {selectedConnection && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Existing Reports</Label>
+                {loadingReports ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  </div>
+                ) : reports.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">No reports uploaded yet</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {reports.map((report) => (
+                      <div 
+                        key={report.id} 
+                        className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
+                      >
+                        {editingReportId === report.id ? (
+                          <>
+                            <Input
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              className="flex-1 h-8"
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleRename(report.id)}
+                            >
+                              <Check className="h-4 w-4 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={cancelEditing}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{report.report_name}</p>
+                              <p className="text-xs text-muted-foreground">{report.report_date}</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => startEditing(report)}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                              onClick={() => handleDelete(report.id)}
+                              disabled={deletingReportId === report.id}
+                            >
+                              {deletingReportId === report.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Separator />
+            </>
+          )}
+
+          {/* Upload New Report */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Upload New Report</Label>
           </div>
 
           <div className="space-y-2">
@@ -168,9 +349,9 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            Close
           </Button>
-          <Button onClick={handleUpload} disabled={uploading}>
+          <Button onClick={handleUpload} disabled={uploading || !selectedConnection}>
             {uploading ? (
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             ) : (
