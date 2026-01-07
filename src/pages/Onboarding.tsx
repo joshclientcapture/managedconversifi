@@ -40,15 +40,15 @@ const INDUSTRIES = [
 ];
 
 const COMPANY_HEADCOUNTS = [
-  { label: "Self-employed", count: "14K+" },
-  { label: "1-10", count: "21K+" },
-  { label: "11-50", count: "14K+" },
-  { label: "51-200", count: "10K+" },
-  { label: "201-500", count: "6K+" },
-  { label: "501-1000", count: "4K+" },
-  { label: "1001-5000", count: "9K+" },
-  { label: "5001-10,000", count: "3.5K+" },
-  { label: "10,000+", count: "10K+" },
+  "Self-employed",
+  "1-10",
+  "11-50",
+  "51-200",
+  "201-500",
+  "501-1000",
+  "1001-5000",
+  "5001-10,000",
+  "10,000+",
 ];
 
 const DEAL_SIZES = [
@@ -516,22 +516,21 @@ const Onboarding = () => {
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {COMPANY_HEADCOUNTS.map((headcount) => (
                       <div
-                        key={headcount.label}
+                        key={headcount}
                         className="flex items-center space-x-2 p-3 rounded-lg border border-border hover:border-primary/30 transition-colors"
                       >
                         <Checkbox
-                          id={`headcount-${headcount.label}`}
-                          checked={formData.companyHeadcounts.includes(headcount.label)}
+                          id={`headcount-${headcount}`}
+                          checked={formData.companyHeadcounts.includes(headcount)}
                           onCheckedChange={(checked) =>
-                            handleCheckboxChange(headcount.label, checked as boolean)
+                            handleCheckboxChange(headcount, checked as boolean)
                           }
                         />
                         <Label
-                          htmlFor={`headcount-${headcount.label}`}
+                          htmlFor={`headcount-${headcount}`}
                           className="font-normal cursor-pointer text-sm"
                         >
-                          {headcount.label}{" "}
-                          <span className="text-muted-foreground">{headcount.count}</span>
+                          {headcount}
                         </Label>
                       </div>
                     ))}
