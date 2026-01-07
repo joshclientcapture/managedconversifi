@@ -45,6 +45,7 @@ const Dashboard = () => {
   );
   const [inputToken, setInputToken] = useState('');
   const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [data, setData] = useState<DashboardData | null>(null);
   const [timezone, setTimezone] = useState(() => 
     localStorage.getItem('dashboard_timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -90,6 +91,27 @@ const Dashboard = () => {
   const handleTimezoneChange = (tz: string) => {
     setTimezone(tz);
     localStorage.setItem('dashboard_timezone', tz);
+  };
+
+  const handleSyncStats = async () => {
+    setSyncing(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('sync-campaign-stats', {
+        body: { access_token: accessToken }
+      });
+
+      if (error || !result?.success) {
+        throw new Error(result?.error || error?.message || 'Failed to sync stats');
+      }
+
+      toast.success('Stats synced successfully');
+      // Refresh dashboard data after sync
+      await fetchDashboardData(accessToken);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to sync stats');
+    } finally {
+      setSyncing(false);
+    }
   };
 
   useEffect(() => {
@@ -199,15 +221,15 @@ const Dashboard = () => {
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => fetchDashboardData(accessToken)}
-                disabled={loading}
+                onClick={handleSyncStats}
+                disabled={syncing || loading}
               >
-                {loading ? (
+                {syncing ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <RefreshCw className="h-4 w-4 mr-2" />
                 )}
-                Refresh
+                {syncing ? 'Syncing...' : 'Sync Stats'}
               </Button>
             </div>
             <StatsOverview stats={data.stats} />
