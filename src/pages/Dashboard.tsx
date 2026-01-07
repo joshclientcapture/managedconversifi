@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, LogOut, BarChart3, Calendar, Globe } from "lucide-react";
 import { toast } from "sonner";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import StatsOverview from "@/components/dashboard/StatsOverview";
 import BookingsTable from "@/components/dashboard/BookingsTable";
 import CampaignCards from "@/components/dashboard/CampaignCards";
@@ -58,7 +58,7 @@ const Dashboard = () => {
       });
 
       if (error || !result?.success) {
-        throw new Error(result?.error || error?.message || 'Invalid access token');
+        throw new Error(result?.error || error?.message || 'Invalid access code');
       }
 
       setData(result);
@@ -74,10 +74,9 @@ const Dashboard = () => {
     }
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (inputToken.trim()) {
-      fetchDashboardData(inputToken.trim().toUpperCase());
+  const handlePinComplete = (value: string) => {
+    if (value.length === 7) {
+      fetchDashboardData(value.toUpperCase());
     }
   };
 
@@ -111,39 +110,39 @@ const Dashboard = () => {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold">Client Dashboard</CardTitle>
-            <CardDescription>Enter your access code to view your stats and bookings</CardDescription>
+            <CardDescription>Enter your 7-digit access code</CardDescription>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Input
-                  type="text"
-                  placeholder="ABC-1234"
-                  value={inputToken}
-                  onChange={(e) => setInputToken(e.target.value.toUpperCase())}
-                  className="h-12 text-center text-xl font-mono tracking-widest uppercase"
-                  maxLength={8}
-                  autoFocus
-                />
-                <p className="text-xs text-muted-foreground text-center">
-                  Your access code was provided when your integration was set up
-                </p>
+          <CardContent className="flex flex-col items-center space-y-6">
+            <InputOTP 
+              maxLength={7} 
+              value={inputToken}
+              onChange={(value) => {
+                setInputToken(value.toUpperCase());
+                handlePinComplete(value);
+              }}
+              disabled={loading}
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} className="h-12 w-10 text-lg font-mono uppercase" />
+                <InputOTPSlot index={1} className="h-12 w-10 text-lg font-mono uppercase" />
+                <InputOTPSlot index={2} className="h-12 w-10 text-lg font-mono uppercase" />
+                <InputOTPSlot index={3} className="h-12 w-10 text-lg font-mono uppercase" />
+                <InputOTPSlot index={4} className="h-12 w-10 text-lg font-mono uppercase" />
+                <InputOTPSlot index={5} className="h-12 w-10 text-lg font-mono uppercase" />
+                <InputOTPSlot index={6} className="h-12 w-10 text-lg font-mono uppercase" />
+              </InputOTPGroup>
+            </InputOTP>
+            
+            {loading && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Verifying...</span>
               </div>
-              <Button 
-                type="submit" 
-                className="w-full h-11 gradient-primary shadow-button"
-                disabled={loading || inputToken.length < 7}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  'Access Dashboard'
-                )}
-              </Button>
-            </form>
+            )}
+            
+            <p className="text-xs text-muted-foreground text-center">
+              Your access code was provided when your integration was set up
+            </p>
           </CardContent>
         </Card>
       </div>

@@ -28,16 +28,13 @@ import StatusIndicator from "./StatusIndicator";
 import { supabase } from "@/integrations/supabase/client";
 
 // Generate simple access token (ABC-1234 format)
-function generateAccessToken(): string {
-  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // Exclude I, O for clarity
-  const numbers = '23456789'; // Exclude 0, 1 for clarity
-  const letterPart = Array.from({ length: 3 }, () => 
-    letters[Math.floor(Math.random() * letters.length)]
-  ).join('');
+function generateAccessToken(clientName: string): string {
+  const cleanName = clientName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 3).padEnd(3, 'X');
+  const numbers = '0123456789';
   const numberPart = Array.from({ length: 4 }, () => 
     numbers[Math.floor(Math.random() * numbers.length)]
   ).join('');
-  return `${letterPart}-${numberPart}`;
+  return `${cleanName}${numberPart}`;
 }
 
 const formSchema = z.object({
@@ -119,20 +116,9 @@ const IntegrationForm = () => {
     slack: "idle",
   });
   
-  // Generate access token on mount
-  const [accessToken, setAccessToken] = useState<string>(() => generateAccessToken());
+  // Generate access token based on client name
+  const [accessToken, setAccessToken] = useState<string>('');
   const [copied, setCopied] = useState(false);
-
-  const copyAccessToken = useCallback(() => {
-    navigator.clipboard.writeText(accessToken);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [accessToken]);
-
-  const regenerateToken = useCallback(() => {
-    setAccessToken(generateAccessToken());
-    setCopied(false);
-  }, []);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -146,6 +132,30 @@ const IntegrationForm = () => {
     },
     mode: "onChange",
   });
+
+  const clientName = form.watch('clientName');
+
+  // Update access token when client name changes
+  useEffect(() => {
+    if (clientName && clientName.trim().length >= 1) {
+      setAccessToken(generateAccessToken(clientName));
+    } else {
+      setAccessToken('');
+    }
+  }, [clientName]);
+
+  const copyAccessToken = useCallback(() => {
+    navigator.clipboard.writeText(accessToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [accessToken]);
+
+  const regenerateToken = useCallback(() => {
+    if (clientName && clientName.trim().length >= 1) {
+      setAccessToken(generateAccessToken(clientName));
+    }
+    setCopied(false);
+  }, [clientName]);
 
   // Fetch GHL locations from edge function
   const fetchLocations = useCallback(async () => {
@@ -353,7 +363,7 @@ const IntegrationForm = () => {
       setEventTypes([]);
       setSelectedEventTypes([]);
       // Generate new token for next integration
-      setAccessToken(generateAccessToken());
+      // Access token will be regenerated when new client name is entered
 
       setTimeout(() => {
         resetForm();
