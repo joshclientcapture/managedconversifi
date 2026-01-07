@@ -245,7 +245,6 @@ serve(async (req) => {
       : 'Time not specified';
 
     const slackToken = Deno.env.get('SLACK_BOT_TOKEN');
-    const ghlApiKey = Deno.env.get('GHL_API_KEY');
 
     // =====================================================
     // HANDLE CANCELLATION (invitee.canceled)
@@ -338,7 +337,8 @@ serve(async (req) => {
       }
     }
 
-    // 1. Create GHL contact
+    // 1. Create GHL contact using per-client API key
+    const ghlApiKey = connection.ghl_api_key;
     if (ghlApiKey && connection.ghl_location_id) {
       try {
         console.log('Creating GHL contact...');
