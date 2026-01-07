@@ -104,16 +104,11 @@ serve(async (req) => {
 
     // =====================================================
     // PARSE WEBHOOK PAYLOAD PER CALENDLY API DOCUMENTATION
-    // https://developer.calendly.com/api-docs/1da466e7fbc1b-get-sample-webhook-data
     // =====================================================
-    // Structure: { event: "invitee.created", payload: { ...invitee data, scheduled_event: {...} } }
-    // The invitee data is DIRECTLY in payload.payload (not payload.payload.invitee)
-    // =====================================================
-
     const inviteeData = payload.payload;
     const scheduledEvent = inviteeData?.scheduled_event;
     
-    // Event type URI for filtering (e.g., https://api.calendly.com/event_types/XXXX)
+    // Event type URI for filtering
     const eventTypeUri = scheduledEvent?.event_type;
     
     // Get user URI from event_memberships for client matching
@@ -155,8 +150,7 @@ serve(async (req) => {
     const eventLocation = scheduledEvent?.location;
     const locationDisplay = eventLocation?.location || eventLocation?.type || 'Virtual';
     
-    // Extract calendly_event_id from URI (last segment)
-    // e.g., https://api.calendly.com/scheduled_events/GBGBDCAADAEDCRZ2 -> GBGBDCAADAEDCRZ2
+    // Extract calendly_event_id from URI
     const calendlyEventId = eventUri?.split('/').pop() || null;
 
     // Cancellation info (for invitee.canceled events)
@@ -192,7 +186,7 @@ serve(async (req) => {
       );
     }
 
-    // Match connection by Calendly user URI (try exact match first, then partial)
+    // Match connection by Calendly user URI
     let connection = connections?.find(c => {
       if (!userUri || !c.calendly_user_uri) return false;
       return c.calendly_user_uri === userUri;
@@ -216,12 +210,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Matched to client: ${connection.client_name} (token: ${connection.access_token})`);
+    console.log(`Matched to client: ${connection.client_name}`);
 
     // Check if this event type is in the watched list
     if (connection.watched_event_types && Array.isArray(connection.watched_event_types)) {
       const watchedTypes = connection.watched_event_types as string[];
-      // Only filter if there are specific types selected (non-empty array)
       if (watchedTypes.length > 0 && eventTypeUri && !watchedTypes.includes(eventTypeUri)) {
         console.log(`Event type ${eventTypeUri} not in watched list:`, watchedTypes);
         return new Response(
@@ -234,9 +227,8 @@ serve(async (req) => {
     // Format event time for display
     const formattedTime = eventTime 
       ? new Date(eventTime).toLocaleString('en-US', { 
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
+          weekday: 'short',
+          month: 'short',
           day: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
@@ -267,7 +259,7 @@ serve(async (req) => {
         console.log('Booking status updated to canceled');
       }
 
-      // Send cancellation to Slack
+      // Send cancellation to Slack - Clean, client-friendly format
       if (slackToken && connection.slack_channel_id) {
         try {
           const slackResponse = await fetch('https://slack.com/api/chat.postMessage', {
@@ -278,28 +270,29 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               channel: connection.slack_channel_id,
-              text: `❌ Booking canceled for ${connection.client_name}`,
+              text: `Booking canceled: ${inviteeName}`,
               blocks: [
                 {
-                  type: 'header',
-                  text: { type: 'plain_text', text: '❌ Calendly Booking Canceled', emoji: true }
+                  type: 'section',
+                  text: {
+                    type: 'mrkdwn',
+                    text: `❌ *Booking Canceled*\n\n*${inviteeName}* has canceled their ${eventName} appointment.`
+                  }
                 },
+                { type: 'divider' },
                 {
                   type: 'section',
                   fields: [
-                    { type: 'mrkdwn', text: `*Client:*\n${connection.client_name}` },
-                    { type: 'mrkdwn', text: `*Contact:*\n${inviteeName}` },
-                    { type: 'mrkdwn', text: `*Email:*\n${inviteeEmail || 'Not provided'}` },
-                    { type: 'mrkdwn', text: `*Event:*\n${eventName}` },
-                    { type: 'mrkdwn', text: `*Was Scheduled:*\n${formattedTime}` },
-                    { type: 'mrkdwn', text: `*Canceled By:*\n${canceledBy}` },
-                    { type: 'mrkdwn', text: `*Reason:*\n${cancelReason}` }
+                    { type: 'mrkdwn', text: `📧 *Email*\n${inviteeEmail || 'Not provided'}` },
+                    { type: 'mrkdwn', text: `📅 *Was Scheduled*\n${formattedTime}` },
+                    { type: 'mrkdwn', text: `👤 *Canceled By*\n${canceledBy}` },
+                    { type: 'mrkdwn', text: `💬 *Reason*\n${cancelReason}` }
                   ]
                 },
                 {
                   type: 'context',
                   elements: [
-                    { type: 'mrkdwn', text: `📋 Access Token: \`${connection.access_token}\` | Event ID: \`${calendlyEventId}\`` }
+                    { type: 'mrkdwn', text: `🏢 ${connection.client_name} • ${eventName}` }
                   ]
                 }
               ]
@@ -366,8 +359,7 @@ serve(async (req) => {
               { key: 'calendly_event_type', value: eventName },
               { key: 'calendly_event_time', value: eventTime || '' },
               { key: 'calendly_event_id', value: calendlyEventId || '' },
-              { key: 'calendly_timezone', value: inviteeTimezone || '' },
-              { key: 'access_token', value: connection.access_token || '' }
+              { key: 'calendly_timezone', value: inviteeTimezone || '' }
             ],
             source: 'Calendly'
           })
@@ -384,66 +376,63 @@ serve(async (req) => {
       }
     }
 
-    // 2. Send Slack notification with rich formatting
+    // 2. Send Slack notification with clean, client-friendly formatting
     if (slackToken && connection.slack_channel_id) {
       try {
         console.log('Sending Slack notification...');
         
+        const headerText = isRescheduled 
+          ? `🔄 *Booking Rescheduled*\n\n*${inviteeName}* has rescheduled their appointment.`
+          : `🎯 *New Booking*\n\n*${inviteeName}* has booked a ${eventName}.`;
+
         // Build action buttons if URLs exist
-        const actionButtons: any[] = [];
+        const actionElements: any[] = [];
         if (rescheduleUrl) {
-          actionButtons.push({
+          actionElements.push({
             type: 'button',
-            text: { type: 'plain_text', text: '📅 Reschedule', emoji: true },
-            url: rescheduleUrl,
-            style: 'primary'
+            text: { type: 'plain_text', text: 'Reschedule', emoji: true },
+            url: rescheduleUrl
           });
         }
         if (cancelUrl) {
-          actionButtons.push({
+          actionElements.push({
             type: 'button',
-            text: { type: 'plain_text', text: '❌ Cancel', emoji: true },
-            url: cancelUrl
+            text: { type: 'plain_text', text: 'Cancel', emoji: true },
+            url: cancelUrl,
+            style: 'danger'
           });
         }
 
         const blocks: any[] = [
           {
-            type: 'header',
-            text: { 
-              type: 'plain_text', 
-              text: isRescheduled ? '🔄 Calendly Booking Rescheduled' : '🎯 New Calendly Booking', 
-              emoji: true 
-            }
+            type: 'section',
+            text: { type: 'mrkdwn', text: headerText }
           },
+          { type: 'divider' },
           {
             type: 'section',
             fields: [
-              { type: 'mrkdwn', text: `*Client:*\n${connection.client_name}` },
-              { type: 'mrkdwn', text: `*Contact:*\n${inviteeName}` },
-              { type: 'mrkdwn', text: `*Email:*\n${inviteeEmail || 'Not provided'}` },
-              { type: 'mrkdwn', text: `*Phone:*\n${inviteePhone || 'Not provided'}` },
-              { type: 'mrkdwn', text: `*Event:*\n${eventName}` },
-              { type: 'mrkdwn', text: `*Time:*\n${formattedTime}` },
-              { type: 'mrkdwn', text: `*Timezone:*\n${inviteeTimezone || 'N/A'}` },
-              { type: 'mrkdwn', text: `*Location:*\n${locationDisplay}` }
+              { type: 'mrkdwn', text: `📅 *When*\n${formattedTime}` },
+              { type: 'mrkdwn', text: `📍 *Location*\n${locationDisplay}` },
+              { type: 'mrkdwn', text: `📧 *Email*\n${inviteeEmail || 'Not provided'}` },
+              { type: 'mrkdwn', text: `📱 *Phone*\n${inviteePhone || 'Not provided'}` }
             ]
           }
         ];
 
         // Add action buttons if any
-        if (actionButtons.length > 0) {
+        if (actionElements.length > 0) {
           blocks.push({
             type: 'actions',
-            elements: actionButtons
+            elements: actionElements
           });
         }
 
-        // Add context footer
+        // Add subtle context footer
         blocks.push({
           type: 'context',
           elements: [
-            { type: 'mrkdwn', text: `📋 Access Token: \`${connection.access_token}\` | Event ID: \`${calendlyEventId}\`` }
+            { type: 'mrkdwn', text: `🏢 ${connection.client_name} • ${eventName}` }
           ]
         });
 
@@ -455,7 +444,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             channel: connection.slack_channel_id,
-            text: `${isRescheduled ? '🔄 Rescheduled' : '🎯 New'} booking for ${connection.client_name}: ${inviteeName} - ${eventName}`,
+            text: `${isRescheduled ? 'Rescheduled' : 'New'} booking: ${inviteeName} - ${eventName}`,
             blocks
           })
         });

@@ -12,8 +12,6 @@ import BookingsTable from "@/components/dashboard/BookingsTable";
 import CampaignCards from "@/components/dashboard/CampaignCards";
 import ReportsSection from "@/components/dashboard/ReportsSection";
 import Header from "@/components/Header";
-import conversifiLogo from "@/assets/conversifi-logo.svg";
-import conversifiLogoWhite from "@/assets/conversifi-logo-white.svg";
 
 interface DashboardData {
   connection: {
@@ -145,13 +143,6 @@ const Dashboard = () => {
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="w-full max-w-md glass-panel shadow-card">
           <CardHeader className="text-center space-y-2">
-            <div className="flex justify-center mb-4">
-              <img 
-                src={isDark ? conversifiLogoWhite : conversifiLogo} 
-                alt="Conversifi" 
-                className="h-10" 
-              />
-            </div>
             <CardTitle className="text-2xl font-semibold">Client Dashboard</CardTitle>
             <CardDescription>Enter your 7-digit access code</CardDescription>
           </CardHeader>
