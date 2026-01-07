@@ -23,6 +23,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 const MIN_CHAR_LIMITS = {
   idealClient: 150,
   problemSolved: 150,
+  serviceDescription: 100,
   successStories: 100,
 };
 
@@ -83,6 +84,7 @@ const Onboarding = () => {
     industries: "",
     jobTitles: "",
     problemSolved: "",
+    serviceDescription: "",
     successStories: "",
     dealSize: "",
     salesPerson: "",
@@ -138,6 +140,11 @@ const Onboarding = () => {
     }
     if (formData.problemSolved.length < MIN_CHAR_LIMITS.problemSolved) {
       toast.error(`Problem solved description needs at least ${MIN_CHAR_LIMITS.problemSolved} characters`);
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.serviceDescription.length < MIN_CHAR_LIMITS.serviceDescription) {
+      toast.error(`Service description needs at least ${MIN_CHAR_LIMITS.serviceDescription} characters`);
       setIsSubmitting(false);
       return;
     }
@@ -396,6 +403,26 @@ const Onboarding = () => {
                   />
                   <p className="text-xs text-muted-foreground">
                     Be specific. Include what you help them achieve, how you help them save time or money, and why your solution is better. More detail helps Conversifi talk like you.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="serviceDescription">How does your service work? *</Label>
+                    <span className={`text-xs ${formData.serviceDescription.length < MIN_CHAR_LIMITS.serviceDescription ? "text-destructive" : "text-muted-foreground"}`}>
+                      {formData.serviceDescription.length}/{MIN_CHAR_LIMITS.serviceDescription} min
+                    </span>
+                  </div>
+                  <Textarea
+                    id="serviceDescription"
+                    value={formData.serviceDescription}
+                    onChange={(e) => handleInputChange("serviceDescription", e.target.value)}
+                    placeholder="Walk us through the steps of how your service works from start to finish..."
+                    rows={5}
+                    className={formData.serviceDescription.length > 0 && formData.serviceDescription.length < MIN_CHAR_LIMITS.serviceDescription ? "border-destructive" : ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Describe the process from initial contact to delivery. Include key steps, timelines, and what clients can expect at each stage.
                   </p>
                 </div>
 

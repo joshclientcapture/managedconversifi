@@ -46,6 +46,7 @@ interface OnboardingSubmission {
   industries: string | null;
   job_titles: string | null;
   problem_solved: string | null;
+  service_description: string | null;
   success_stories: string | null;
   deal_size: string | null;
   sales_person: string | null;
@@ -318,6 +319,13 @@ const OnboardingList = () => {
                   <p className="text-xs font-medium text-muted-foreground mb-1">Problem Solved</p>
                   <div className="text-sm bg-muted/50 rounded-md p-3 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
                     {selectedSubmission.problem_solved || "Not specified"}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">How Their Service Works</p>
+                  <div className="text-sm bg-muted/50 rounded-md p-3 whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+                    {selectedSubmission.service_description || "Not specified"}
                   </div>
                 </div>
               </div>
