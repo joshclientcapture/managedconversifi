@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, RefreshCw, Webhook, Pencil, RotateCcw, Copy, Check, Loader2, Upload } from "lucide-react";
+import { Trash2, RefreshCw, Webhook, Pencil, Copy, Check, Loader2, Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -20,7 +20,6 @@ import {
 import EditConnectionModal from "@/components/EditConnectionModal";
 import WebhookDetailsDialog from "@/components/admin/WebhookDetailsDialog";
 import ReportUploader from "@/components/admin/ReportUploader";
-import ReportManager from "@/components/admin/ReportManager";
 import AdminManager from "@/components/admin/AdminManager";
 import Header from "@/components/Header";
 
@@ -46,9 +45,9 @@ const Admin = () => {
   const [editingConnection, setEditingConnection] = useState<ClientConnection | null>(null);
   const [webhookConnection, setWebhookConnection] = useState<ClientConnection | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [recreatingWebhook, setRecreatingWebhook] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [reportUploaderOpen, setReportUploaderOpen] = useState(false);
+  const [reportConnectionId, setReportConnectionId] = useState<string | null>(null);
 
   const fetchConnections = async () => {
     setLoading(true);
@@ -66,24 +65,9 @@ const Admin = () => {
     setLoading(false);
   };
 
-  const recreateWebhook = async (connection: ClientConnection) => {
-    setRecreatingWebhook(connection.id);
-    try {
-      const { data, error } = await supabase.functions.invoke("recreate-calendly-webhook", {
-        body: { connection_id: connection.id },
-      });
-
-      if (error || !data.success) {
-        throw new Error(data?.error || error?.message);
-      }
-
-      toast.success(data.message || "Webhook recreated");
-      fetchConnections();
-    } catch (err) {
-      toast.error("Failed to recreate webhook");
-      console.error(err);
-    }
-    setRecreatingWebhook(null);
+  const openReportUploader = (connectionId: string) => {
+    setReportConnectionId(connectionId);
+    setReportUploaderOpen(true);
   };
 
   const deleteConnection = async (connection: ClientConnection) => {
@@ -227,18 +211,13 @@ const Admin = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => recreateWebhook(conn)}
-                                disabled={recreatingWebhook === conn.id}
-                                title="Recreate Webhook"
+                                onClick={() => openReportUploader(conn.id)}
+                                title="Upload Report"
                               >
-                                {recreatingWebhook === conn.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <RotateCcw className="h-4 w-4" />
-                                )}
+                                <FileText className="h-4 w-4" />
                               </Button>
                               <Button
-                                variant="outline"
+                                variant="ghost"
                                 size="sm"
                                 onClick={() => setWebhookConnection(conn)}
                                 title="View Webhooks"
@@ -285,11 +264,6 @@ const Admin = () => {
             </CardContent>
           </Card>
 
-          {/* Reports Management */}
-          <div className="mt-8">
-            <ReportManager connections={connections} />
-          </div>
-
           {/* Admin Users Management */}
           <div className="mt-8">
             <AdminManager />
@@ -306,12 +280,17 @@ const Admin = () => {
             connection={webhookConnection}
             open={!!webhookConnection}
             onClose={() => setWebhookConnection(null)}
+            onRecreate={fetchConnections}
           />
           
           <ReportUploader
             connections={connections}
             open={reportUploaderOpen}
-            onClose={() => setReportUploaderOpen(false)}
+            onClose={() => {
+              setReportUploaderOpen(false);
+              setReportConnectionId(null);
+            }}
+            preselectedConnectionId={reportConnectionId}
           />
         </div>
       </main>

@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, Loader2, Webhook } from "lucide-react";
+import { Trash2, Loader2, Webhook, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 interface CalendlyWebhook {
@@ -46,12 +46,14 @@ interface WebhookDetailsDialogProps {
   connection: ClientConnection | null;
   open: boolean;
   onClose: () => void;
+  onRecreate?: () => void;
 }
 
-const WebhookDetailsDialog = ({ connection, open, onClose }: WebhookDetailsDialogProps) => {
+const WebhookDetailsDialog = ({ connection, open, onClose, onRecreate }: WebhookDetailsDialogProps) => {
   const [webhooks, setWebhooks] = useState<CalendlyWebhook[]>([]);
   const [loading, setLoading] = useState(false);
   const [deletingWebhook, setDeletingWebhook] = useState<string | null>(null);
+  const [recreating, setRecreating] = useState(false);
 
   const fetchWebhooks = async () => {
     if (!connection) return;
@@ -103,6 +105,29 @@ const WebhookDetailsDialog = ({ connection, open, onClose }: WebhookDetailsDialo
     setDeletingWebhook(null);
   };
 
+  const recreateWebhook = async () => {
+    if (!connection) return;
+    
+    setRecreating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("recreate-calendly-webhook", {
+        body: { connection_id: connection.id },
+      });
+
+      if (error || !data.success) {
+        throw new Error(data?.error || error?.message);
+      }
+
+      toast.success(data.message || "Webhook recreated");
+      fetchWebhooks();
+      onRecreate?.();
+    } catch (err) {
+      toast.error("Failed to recreate webhook");
+      console.error(err);
+    }
+    setRecreating(false);
+  };
+
   // Fetch webhooks when dialog opens
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen && connection) {
@@ -119,10 +144,25 @@ const WebhookDetailsDialog = ({ connection, open, onClose }: WebhookDetailsDialo
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Webhook className="h-5 w-5" />
-            Calendly Webhooks
-          </DialogTitle>
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2">
+              <Webhook className="h-5 w-5" />
+              Calendly Webhooks
+            </DialogTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={recreateWebhook}
+              disabled={recreating}
+            >
+              {recreating ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RotateCcw className="h-4 w-4 mr-2" />
+              )}
+              Recreate Webhook
+            </Button>
+          </div>
           <DialogDescription>
             {connection?.client_name} - Manage webhook subscriptions
           </DialogDescription>

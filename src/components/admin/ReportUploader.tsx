@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,14 +30,22 @@ interface ReportUploaderProps {
   connections: ClientConnection[];
   open: boolean;
   onClose: () => void;
+  preselectedConnectionId?: string | null;
 }
 
-const ReportUploader = ({ connections, open, onClose }: ReportUploaderProps) => {
+const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }: ReportUploaderProps) => {
   const [uploading, setUploading] = useState(false);
-  const [selectedConnection, setSelectedConnection] = useState<string>("");
+  const [selectedConnection, setSelectedConnection] = useState<string>(preselectedConnectionId || "");
   const [reportName, setReportName] = useState("");
   const [reportDate, setReportDate] = useState("");
   const [file, setFile] = useState<File | null>(null);
+
+  // Update selection when preselectedConnectionId changes
+  useEffect(() => {
+    if (preselectedConnectionId) {
+      setSelectedConnection(preselectedConnectionId);
+    }
+  }, [preselectedConnectionId]);
 
   const handleUpload = async () => {
     if (!selectedConnection || !reportName || !reportDate || !file) {
