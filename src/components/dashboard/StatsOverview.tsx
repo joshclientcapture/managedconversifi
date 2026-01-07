@@ -5,6 +5,7 @@ interface StatsOverviewProps {
   stats: {
     latest: any;
     history: any[];
+    actualMeetingsBooked?: number;
   };
 }
 
@@ -44,7 +45,7 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
     },
     {
       title: "Meetings Booked",
-      value: latest.meetings_booked || 0,
+      value: stats.actualMeetingsBooked ?? latest.meetings_booked ?? 0,
       icon: CalendarCheck,
       color: "text-emerald-500",
       bgColor: "bg-emerald-500/10"

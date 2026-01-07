@@ -70,8 +70,13 @@ serve(async (req) => {
 
     // Get latest stats for summary
     const latestStats = campaignStats?.[0] || null;
+    
+    // Count actual bookings (scheduled, not canceled)
+    const actualMeetingsBooked = (bookings || []).filter(
+      (b: any) => b.event_status !== 'canceled'
+    ).length;
 
-    console.log(`Found ${campaignStats?.length || 0} stat records and ${bookings?.length || 0} bookings`);
+    console.log(`Found ${campaignStats?.length || 0} stat records and ${bookings?.length || 0} bookings (${actualMeetingsBooked} active)`);
 
     return new Response(
       JSON.stringify({
@@ -84,7 +89,8 @@ serve(async (req) => {
         },
         stats: {
           latest: latestStats,
-          history: campaignStats || []
+          history: campaignStats || [],
+          actualMeetingsBooked
         },
         bookings: bookings || []
       }),
