@@ -11,11 +11,17 @@ interface StatsOverviewProps {
 
 const StatsOverview = ({ stats }: StatsOverviewProps) => {
   const latest = stats.latest || {};
+  
+  // Sum up connection_requests_sent from all campaigns to get the real total
+  const campaigns = latest.campaign_data?.campaigns || [];
+  const totalConnectionRequestsSent = campaigns.reduce((sum: number, campaign: any) => {
+    return sum + (campaign.stats?.connection_requests_sent || 0);
+  }, 0);
 
   const statCards = [
     {
       title: "Connection Requests Sent",
-      value: latest.pending_requests || 0,
+      value: totalConnectionRequestsSent,
       icon: Send,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10"

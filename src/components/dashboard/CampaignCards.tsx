@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Users, Send, MessageSquare, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { Send, MessageSquare, CheckCircle } from "lucide-react";
 
 interface CampaignCardsProps {
   stats: {
@@ -70,7 +70,7 @@ const CampaignCards = ({ stats }: CampaignCardsProps) => {
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                <div className="grid grid-cols-3 gap-3 pt-2">
                   <div className="flex items-center gap-2">
                     <Send className="h-4 w-4 text-muted-foreground" />
                     <div>
@@ -90,13 +90,6 @@ const CampaignCards = ({ stats }: CampaignCardsProps) => {
                     <div>
                       <p className="text-sm font-medium">{campaignStats.responses || 0}</p>
                       <p className="text-xs text-muted-foreground">Replies</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-amber-500" />
-                    <div>
-                      <p className="text-sm font-medium">{campaignStats.pending_requests || 0}</p>
-                      <p className="text-xs text-muted-foreground">Pending</p>
                     </div>
                   </div>
                 </div>
