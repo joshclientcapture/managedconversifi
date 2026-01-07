@@ -172,7 +172,6 @@ const Admin = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Client</TableHead>
-                        <TableHead>Token</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -184,24 +183,22 @@ const Admin = () => {
                             <div>
                               <p className="font-medium">{conn.client_name}</p>
                               <p className="text-xs text-muted-foreground">{conn.ghl_location_name}</p>
+                              {conn.access_token && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-1.5 font-mono text-xs text-muted-foreground hover:text-foreground mt-1"
+                                  onClick={() => copyAccessToken(conn.access_token)}
+                                >
+                                  {copiedToken === conn.access_token ? (
+                                    <Check className="h-3 w-3 mr-1 text-success" />
+                                  ) : (
+                                    <Copy className="h-3 w-3 mr-1" />
+                                  )}
+                                  {conn.access_token}
+                                </Button>
+                              )}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            {conn.access_token && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 font-mono text-xs"
-                                onClick={() => copyAccessToken(conn.access_token)}
-                              >
-                                {copiedToken === conn.access_token ? (
-                                  <Check className="h-3 w-3 mr-1 text-success" />
-                                ) : (
-                                  <Copy className="h-3 w-3 mr-1" />
-                                )}
-                                {conn.access_token}
-                              </Button>
-                            )}
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">
