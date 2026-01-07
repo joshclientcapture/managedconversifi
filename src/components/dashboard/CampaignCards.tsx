@@ -74,7 +74,7 @@ const CampaignCards = ({ stats }: CampaignCardsProps) => {
                   <div className="flex items-center gap-2">
                     <Send className="h-4 w-4 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">{campaignStats.connection_requests_sent || 0}</p>
+                      <p className="text-sm font-medium">{campaignStats.total_sent || 0}</p>
                       <p className="text-xs text-muted-foreground">Requests</p>
                     </div>
                   </div>
