@@ -1,38 +1,57 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, Reply, Handshake, CalendarCheck, Send, UserCheck } from "lucide-react";
 
+type TimePeriod = "last_7_days" | "last_14_days" | "last_30_days" | "all_time";
+
 interface StatsOverviewProps {
   stats: {
     latest: any;
     history: any[];
     actualMeetingsBooked?: number;
   };
+  selectedPeriod: TimePeriod;
 }
 
-const StatsOverview = ({ stats }: StatsOverviewProps) => {
+const StatsOverview = ({ stats, selectedPeriod }: StatsOverviewProps) => {
   const latest = stats.latest || {};
   
-  // Get totals from campaign_data
-  const campaigns = latest.campaign_data?.campaigns || [];
-  const totals = latest.campaign_data?.totals || {};
+  // Get campaign data and totals
+  const campaignData = latest.campaign_data || {};
+  const campaigns = campaignData.campaigns || [];
+  const totals = campaignData.totals || {};
   
-  // Use total_sent from totals for connection requests sent
-  const totalSent = totals.total_sent || campaigns.reduce((sum: number, campaign: any) => {
-    return sum + (campaign.stats?.total_sent || 0);
-  }, 0);
+  // Get the totals for the selected period, fallback to all_time
+  const periodTotals = totals[selectedPeriod] || totals.all_time || {};
   
-  // Sum inmails_sent + messages_sent from all campaigns for Messages Sent
-  const totalMessagesSent = campaigns.reduce((sum: number, campaign: any) => {
-    return sum + (campaign.stats?.inmails_sent || 0) + (campaign.stats?.messages_sent || 0);
-  }, 0);
+  // Use period-specific totals for connection requests sent
+  const totalSent = periodTotals.total_sent || latest.total_sent || 0;
   
-  // Sum total responses from all campaigns
-  const totalResponses = totals.total_responses || campaigns.reduce((sum: number, campaign: any) => {
-    return sum + (campaign.stats?.responses || 0);
-  }, 0);
+  // Connections made and acceptance rate from period totals
+  const connectionsMade = periodTotals.connections_accepted || latest.connections_made || 0;
+  const acceptanceRate = periodTotals.acceptance_rate || latest.acceptance_rate || 0;
   
-  // Calculate response rate as responses / messages sent
-  const responseRate = totalMessagesSent > 0 ? (totalResponses / totalMessagesSent) * 100 : 0;
+  // Sum inmails_sent + messages_sent from campaigns for the selected period
+  let totalMessagesSent = 0;
+  for (const campaign of campaigns) {
+    const periodStats = campaign?.periods?.[selectedPeriod]?.stats || campaign?.stats || {};
+    totalMessagesSent += (periodStats.inmails_sent || 0) + (periodStats.messages_sent || 0);
+  }
+  // Fallback to latest if no period data
+  if (totalMessagesSent === 0) {
+    totalMessagesSent = latest.messages_sent || 0;
+  }
+  
+  // Total responses and response rate from period totals
+  const totalResponses = periodTotals.total_responses || latest.total_responses || 0;
+  const responseRate = periodTotals.response_rate || latest.response_rate || 0;
+  
+  // Count active campaigns
+  const activeCampaigns = periodTotals.active_campaigns || campaigns.filter((c: any) => 
+    c.status === 'active' || (c.status && c.status !== 'paused')
+  ).length;
+
+  // Meetings booked - use actual from DB (always all-time for now)
+  const meetingsBooked = stats.actualMeetingsBooked ?? latest.meetings_booked ?? 0;
 
   const statCards = [
     {
@@ -44,11 +63,11 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
     },
     {
       title: "Connections Made",
-      value: latest.connections_made || 0,
+      value: connectionsMade,
       icon: Handshake,
       color: "text-amber-500",
       bgColor: "bg-amber-500/10",
-      subValue: latest.acceptance_rate ? `${latest.acceptance_rate.toFixed(1)}% rate` : null
+      subValue: acceptanceRate ? `${Number(acceptanceRate).toFixed(1)}% rate` : null
     },
     {
       title: "Messages Sent",
@@ -63,18 +82,18 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
       icon: Reply,
       color: "text-green-500",
       bgColor: "bg-green-500/10",
-      subValue: responseRate > 0 ? `${responseRate.toFixed(1)}% rate` : null
+      subValue: responseRate ? `${Number(responseRate).toFixed(1)}% rate` : null
     },
     {
       title: "Meetings Booked",
-      value: stats.actualMeetingsBooked ?? latest.meetings_booked ?? 0,
+      value: meetingsBooked,
       icon: CalendarCheck,
       color: "text-emerald-500",
       bgColor: "bg-emerald-500/10"
     },
     {
       title: "Active Accounts",
-      value: latest.campaign_data?.campaigns?.length || 0,
+      value: activeCampaigns,
       icon: UserCheck,
       color: "text-cyan-500",
       bgColor: "bg-cyan-500/10"

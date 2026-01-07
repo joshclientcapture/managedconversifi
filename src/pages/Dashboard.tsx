@@ -29,6 +29,15 @@ interface DashboardData {
   bookings: any[];
 }
 
+type TimePeriod = "last_7_days" | "last_14_days" | "last_30_days" | "all_time";
+
+const TIME_PERIODS: { value: TimePeriod; label: string }[] = [
+  { value: 'last_7_days', label: 'Last 7 Days' },
+  { value: 'last_14_days', label: 'Last 14 Days' },
+  { value: 'last_30_days', label: 'Last 30 Days' },
+  { value: 'all_time', label: 'All Time' },
+];
+
 const TIMEZONES = [
   { value: 'UTC', label: 'UTC' },
   { value: 'America/New_York', label: 'Eastern Time (ET)' },
@@ -54,6 +63,7 @@ const Dashboard = () => {
   const [timezone, setTimezone] = useState(() => 
     localStorage.getItem('dashboard_timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone
   );
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('all_time');
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== "undefined") {
       return document.documentElement.classList.contains("dark");
@@ -244,7 +254,19 @@ const Dashboard = () => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
-            <div className="flex justify-end">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <Select value={selectedPeriod} onValueChange={(v) => setSelectedPeriod(v as TimePeriod)}>
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIME_PERIODS.map((period) => (
+                    <SelectItem key={period.value} value={period.value}>
+                      {period.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -259,8 +281,8 @@ const Dashboard = () => {
                 {syncing ? 'Syncing...' : 'Sync Stats'}
               </Button>
             </div>
-            <StatsOverview stats={data.stats} />
-            <CampaignCards stats={data.stats} />
+            <StatsOverview stats={data.stats} selectedPeriod={selectedPeriod} />
+            <CampaignCards stats={data.stats} selectedPeriod={selectedPeriod} />
           </TabsContent>
 
           <TabsContent value="bookings">
