@@ -467,7 +467,7 @@ serve(async (req) => {
       }
     }
 
-    // 3. Log booking to database
+    // 3. Log booking to database with action URLs
     console.log('Logging booking to database...');
     const { error: bookingError } = await supabase.from('bookings').insert({
       client_connection_id: connection.id,
@@ -482,6 +482,8 @@ serve(async (req) => {
       calendly_invitee_uri: inviteeUri,
       calendly_event_id: calendlyEventId,
       event_status: 'scheduled',
+      reschedule_url: rescheduleUrl,
+      cancel_url: cancelUrl,
       raw_payload: payload
     });
 

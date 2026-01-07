@@ -27,15 +27,17 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import StatusIndicator from "./StatusIndicator";
 import { supabase } from "@/integrations/supabase/client";
 
-// Generate access token on frontend
+// Generate simple access token (ABC-1234 format)
 function generateAccessToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  const segments = [8, 4, 4, 12];
-  return segments.map(len => {
-    const array = new Uint8Array(len);
-    crypto.getRandomValues(array);
-    return Array.from(array).map(b => chars[b % chars.length]).join('');
-  }).join('-');
+  const letters = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // Exclude I, O for clarity
+  const numbers = '23456789'; // Exclude 0, 1 for clarity
+  const letterPart = Array.from({ length: 3 }, () => 
+    letters[Math.floor(Math.random() * letters.length)]
+  ).join('');
+  const numberPart = Array.from({ length: 4 }, () => 
+    numbers[Math.floor(Math.random() * numbers.length)]
+  ).join('');
+  return `${letterPart}-${numberPart}`;
 }
 
 const formSchema = z.object({
