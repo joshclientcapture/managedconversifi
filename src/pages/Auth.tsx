@@ -20,7 +20,6 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== "undefined") {
       return document.documentElement.classList.contains("dark");
@@ -97,27 +96,6 @@ const Auth = () => {
     setLoading(false);
   };
 
-  const handleSignUp = async () => {
-    if (!validateInputs()) return;
-    
-    setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-      },
-    });
-
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Account created! You can now sign in.");
-      setIsSignUp(false);
-    }
-    setLoading(false);
-  };
-
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -129,8 +107,8 @@ const Auth = () => {
             className="h-10 mx-auto transition-opacity duration-300"
           />
           <div className="space-y-2">
-            <CardTitle className="text-2xl font-semibold">{isSignUp ? "Create Account" : "Admin Access"}</CardTitle>
-            <CardDescription>{isSignUp ? "Sign up to create your admin account" : "Sign in to manage client integrations"}</CardDescription>
+            <CardTitle className="text-2xl font-semibold">Admin Access</CardTitle>
+            <CardDescription>Sign in to manage client integrations</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -168,17 +146,10 @@ const Auth = () => {
               </Button>
             </div>
           </div>
-          <Button className="w-full" onClick={isSignUp ? handleSignUp : handleSignIn} disabled={loading}>
+          <Button className="w-full" onClick={handleSignIn} disabled={loading}>
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isSignUp ? "Sign Up" : "Sign In"}
+            Sign In
           </Button>
-          <div className="text-center text-sm text-muted-foreground">
-            {isSignUp ? (
-              <>Already have an account? <button type="button" className="text-primary hover:underline" onClick={() => setIsSignUp(false)}>Sign in</button></>
-            ) : (
-              <>Need an account? <button type="button" className="text-primary hover:underline" onClick={() => setIsSignUp(true)}>Sign up</button></>
-            )}
-          </div>
         </CardContent>
       </Card>
     </div>
