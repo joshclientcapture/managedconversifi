@@ -25,6 +25,14 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
   const totalMessagesSent = campaigns.reduce((sum: number, campaign: any) => {
     return sum + (campaign.stats?.inmails_sent || 0) + (campaign.stats?.messages_sent || 0);
   }, 0);
+  
+  // Sum total responses from all campaigns
+  const totalResponses = totals.total_responses || campaigns.reduce((sum: number, campaign: any) => {
+    return sum + (campaign.stats?.responses || 0);
+  }, 0);
+  
+  // Calculate response rate as responses / messages sent
+  const responseRate = totalMessagesSent > 0 ? (totalResponses / totalMessagesSent) * 100 : 0;
 
   const statCards = [
     {
@@ -51,11 +59,11 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
     },
     {
       title: "Responses",
-      value: latest.replies_received || latest.total_responses || 0,
+      value: totalResponses,
       icon: Reply,
       color: "text-green-500",
       bgColor: "bg-green-500/10",
-      subValue: latest.response_rate ? `${latest.response_rate.toFixed(1)}% rate` : null
+      subValue: responseRate > 0 ? `${responseRate.toFixed(1)}% rate` : null
     },
     {
       title: "Meetings Booked",
