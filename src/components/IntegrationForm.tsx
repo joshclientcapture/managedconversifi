@@ -401,19 +401,12 @@ const IntegrationForm = () => {
     <div className="w-full max-w-2xl mx-auto space-y-6">
       <Card className="gradient-card shadow-card border-0 transition-all duration-300 hover:shadow-card-hover">
         <CardHeader className="space-y-1 pb-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl gradient-primary shadow-button">
-              <Link2 className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <div>
-              <CardTitle className="text-2xl font-bold text-foreground">
-                Client Integration Setup
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Connect your client's services to activate the integration
-              </CardDescription>
-            </div>
-          </div>
+          <CardTitle className="text-2xl font-bold text-foreground">
+            Client Integration Setup
+          </CardTitle>
+          <CardDescription className="text-muted-foreground">
+            Connect your client's services to activate the integration
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {connectionSuccess && connectionResult && (
