@@ -1,11 +1,14 @@
-import { Moon, Sun } from "lucide-react";
+import { Moon, Sun, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import conversifiLogo from "@/assets/conversifi-logo.svg";
 import conversifiLogoWhite from "@/assets/conversifi-logo-white.svg";
 
 const Header = () => {
+  const navigate = useNavigate();
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== "undefined") {
       return document.documentElement.classList.contains("dark");
@@ -40,6 +43,12 @@ const Header = () => {
     setTimeout(() => setIsTransitioning(false), 500);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Logged out");
+    navigate("/auth");
+  };
+
   return (
     <>
       {/* Theme transition overlay */}
@@ -64,16 +73,28 @@ const Header = () => {
             />
           </Link>
           
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleThemeToggle}
-            className={`rounded-full transition-transform duration-300 ${isTransitioning ? 'rotate-180 scale-110' : 'rotate-0 scale-100'}`}
-          >
-            <Sun className={`h-5 w-5 transition-all duration-300 ${isDark ? 'rotate-0 scale-100' : 'rotate-90 scale-0'} absolute`} />
-            <Moon className={`h-5 w-5 transition-all duration-300 ${isDark ? '-rotate-90 scale-0' : 'rotate-0 scale-100'}`} />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleThemeToggle}
+              className={`rounded-full transition-transform duration-300 ${isTransitioning ? 'rotate-180 scale-110' : 'rotate-0 scale-100'}`}
+            >
+              <Sun className={`h-5 w-5 transition-all duration-300 ${isDark ? 'rotate-0 scale-100' : 'rotate-90 scale-0'} absolute`} />
+              <Moon className={`h-5 w-5 transition-all duration-300 ${isDark ? '-rotate-90 scale-0' : 'rotate-0 scale-100'}`} />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              className="rounded-full"
+              title="Log out"
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="sr-only">Log out</span>
+            </Button>
+          </div>
         </div>
       </header>
     </>
