@@ -47,7 +47,7 @@ const ReportsSection = ({ connectionId }: ReportsSectionProps) => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            Bi-Weekly Reports
+            Performance Reports
           </CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8">
@@ -62,11 +62,9 @@ const ReportsSection = ({ connectionId }: ReportsSectionProps) => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <FileText className="h-5 w-5" />
-          Bi-Weekly Reports
+          Performance Reports
         </CardTitle>
-        <CardDescription>
-          Download your campaign performance reports
-        </CardDescription>
+        <CardDescription>Download your campaign performance reports</CardDescription>
       </CardHeader>
       <CardContent>
         {reports.length === 0 ? (
@@ -94,11 +92,7 @@ const ReportsSection = ({ connectionId }: ReportsSectionProps) => {
                     </div>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.open(report.report_url, "_blank")}
-                >
+                <Button variant="outline" size="sm" onClick={() => window.open(report.report_url, "_blank")}>
                   <Download className="h-4 w-4 mr-2" />
                   Download
                 </Button>
