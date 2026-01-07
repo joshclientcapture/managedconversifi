@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, RefreshCw, Webhook, Pencil, RotateCcw, Copy, Check, Loader2 } from "lucide-react";
+import { Trash2, RefreshCw, Webhook, Pencil, RotateCcw, Copy, Check, Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -18,6 +18,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import EditConnectionModal from "@/components/EditConnectionModal";
+import WebhookDetailsDialog from "@/components/admin/WebhookDetailsDialog";
+import ReportUploader from "@/components/admin/ReportUploader";
 import Header from "@/components/Header";
 
 interface ClientConnection {
@@ -36,28 +38,15 @@ interface ClientConnection {
   created_at: string;
 }
 
-interface CalendlyWebhook {
-  uri: string;
-  callback_url: string;
-  created_at: string;
-  updated_at: string;
-  state: string;
-  events: string[];
-  scope: string;
-  creator: string;
-}
-
 const Admin = () => {
   const [connections, setConnections] = useState<ClientConnection[]>([]);
-  const [webhooks, setWebhooks] = useState<CalendlyWebhook[]>([]);
   const [loading, setLoading] = useState(true);
-  const [webhooksLoading, setWebhooksLoading] = useState(false);
-  const [selectedConnection, setSelectedConnection] = useState<ClientConnection | null>(null);
   const [editingConnection, setEditingConnection] = useState<ClientConnection | null>(null);
+  const [webhookConnection, setWebhookConnection] = useState<ClientConnection | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deletingWebhook, setDeletingWebhook] = useState<string | null>(null);
   const [recreatingWebhook, setRecreatingWebhook] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [reportUploaderOpen, setReportUploaderOpen] = useState(false);
 
   const fetchConnections = async () => {
     setLoading(true);
@@ -73,57 +62,6 @@ const Admin = () => {
       setConnections(data || []);
     }
     setLoading(false);
-  };
-
-  const fetchWebhooks = async (connection: ClientConnection) => {
-    setWebhooksLoading(true);
-    setSelectedConnection(connection);
-    setWebhooks([]);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("list-calendly-webhooks", {
-        body: {
-          calendly_token: connection.calendly_token,
-          org_uri: connection.calendly_org_uri,
-          user_uri: connection.calendly_user_uri,
-        },
-      });
-
-      if (error || !data.success) {
-        throw new Error(data?.error || error?.message);
-      }
-
-      setWebhooks(data.webhooks || []);
-    } catch (err) {
-      toast.error("Failed to fetch webhooks");
-      console.error(err);
-    }
-    setWebhooksLoading(false);
-  };
-
-  const deleteWebhook = async (webhookUri: string) => {
-    if (!selectedConnection) return;
-    
-    setDeletingWebhook(webhookUri);
-    try {
-      const { data, error } = await supabase.functions.invoke("delete-calendly-webhook", {
-        body: {
-          calendly_token: selectedConnection.calendly_token,
-          webhook_uri: webhookUri,
-        },
-      });
-
-      if (error || !data.success) {
-        throw new Error(data?.error || error?.message);
-      }
-
-      toast.success("Webhook deleted");
-      setWebhooks((prev) => prev.filter((w) => w.uri !== webhookUri));
-    } catch (err) {
-      toast.error("Failed to delete webhook");
-      console.error(err);
-    }
-    setDeletingWebhook(null);
   };
 
   const recreateWebhook = async (connection: ClientConnection) => {
@@ -150,13 +88,19 @@ const Admin = () => {
     setDeletingId(connection.id);
     
     try {
+      // Delete Calendly webhook first if it exists
       if (connection.calendly_webhook_id) {
-        await supabase.functions.invoke("delete-calendly-webhook", {
-          body: {
-            calendly_token: connection.calendly_token,
-            webhook_uri: connection.calendly_webhook_id,
-          },
-        });
+        try {
+          await supabase.functions.invoke("delete-calendly-webhook", {
+            body: {
+              calendly_token: connection.calendly_token,
+              webhook_uri: connection.calendly_webhook_id,
+            },
+          });
+        } catch (webhookErr) {
+          console.warn("Failed to delete Calendly webhook:", webhookErr);
+          // Continue with connection deletion even if webhook deletion fails
+        }
       }
 
       const { error } = await supabase
@@ -166,13 +110,8 @@ const Admin = () => {
 
       if (error) throw error;
 
-      toast.success("Connection deleted");
+      toast.success("Connection and webhook deleted");
       setConnections((prev) => prev.filter((c) => c.id !== connection.id));
-      
-      if (selectedConnection?.id === connection.id) {
-        setSelectedConnection(null);
-        setWebhooks([]);
-      }
     } catch (err) {
       toast.error("Failed to delete connection");
       console.error(err);
@@ -197,24 +136,34 @@ const Admin = () => {
       <main className="flex-1 py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold text-foreground">Admin Dashboard</h1>
-            <p className="text-muted-foreground">Manage client connections and webhooks</p>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-          {/* Connections Table */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Client Connections</CardTitle>
-              <Button variant="outline" size="sm" onClick={fetchConnections} disabled={loading}>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+              <h1 className="text-3xl font-semibold text-foreground">Admin Dashboard</h1>
+              <p className="text-muted-foreground">Manage client connections and reports</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setReportUploaderOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Report
+              </Button>
+              <Button variant="outline" onClick={fetchConnections} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
+            </div>
+          </div>
+
+          {/* Connections Table */}
+          <Card className="glass-panel">
+            <CardHeader>
+              <CardTitle>Client Connections</CardTitle>
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading...</div>
+                <div className="text-center py-8 text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                  Loading...
+                </div>
               ) : connections.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">No connections found</div>
               ) : (
@@ -230,10 +179,7 @@ const Admin = () => {
                     </TableHeader>
                     <TableBody>
                       {connections.map((conn) => (
-                        <TableRow 
-                          key={conn.id}
-                          className={selectedConnection?.id === conn.id ? "bg-muted/50" : ""}
-                        >
+                        <TableRow key={conn.id}>
                           <TableCell>
                             <div>
                               <p className="font-medium">{conn.client_name}</p>
@@ -295,8 +241,7 @@ const Admin = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => fetchWebhooks(conn)}
-                                disabled={webhooksLoading && selectedConnection?.id === conn.id}
+                                onClick={() => setWebhookConnection(conn)}
                                 title="View Webhooks"
                               >
                                 <Webhook className="h-4 w-4" />
@@ -308,7 +253,11 @@ const Admin = () => {
                                     size="sm"
                                     disabled={deletingId === conn.id}
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    {deletingId === conn.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
                                   </Button>
                                 </AlertDialogTrigger>
                                 <AlertDialogContent>
@@ -337,88 +286,23 @@ const Admin = () => {
             </CardContent>
           </Card>
 
-          {/* Webhooks Panel */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Webhook className="h-5 w-5" />
-                Calendly Webhooks
-                {selectedConnection && (
-                  <Badge variant="outline" className="ml-2">
-                    {selectedConnection.client_name}
-                  </Badge>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {!selectedConnection ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Select a connection to view webhooks
-                </div>
-              ) : webhooksLoading ? (
-                <div className="text-center py-8 text-muted-foreground">Loading webhooks...</div>
-              ) : webhooks.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">No webhooks found</div>
-              ) : (
-                <div className="space-y-3">
-                  {webhooks.map((webhook) => (
-                    <div
-                      key={webhook.uri}
-                      className="p-4 border rounded-lg bg-muted/30 space-y-2"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{webhook.callback_url}</p>
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {webhook.events.map((event) => (
-                              <Badge key={event} variant="secondary" className="text-xs">
-                                {event.replace("invitee.", "")}
-                              </Badge>
-                            ))}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-2">
-                            State: {webhook.state} • Scope: {webhook.scope}
-                          </p>
-                        </div>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              disabled={deletingWebhook === webhook.uri}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Webhook?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will remove the webhook subscription from Calendly. This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => deleteWebhook(webhook.uri)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          </div>
-
-          {/* Edit Modal */}
+          {/* Modals */}
           <EditConnectionModal
             connection={editingConnection}
             onClose={() => setEditingConnection(null)}
             onSave={fetchConnections}
+          />
+          
+          <WebhookDetailsDialog
+            connection={webhookConnection}
+            open={!!webhookConnection}
+            onClose={() => setWebhookConnection(null)}
+          />
+          
+          <ReportUploader
+            connections={connections}
+            open={reportUploaderOpen}
+            onClose={() => setReportUploaderOpen(false)}
           />
         </div>
       </main>

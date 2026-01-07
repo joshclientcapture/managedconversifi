@@ -16,7 +16,7 @@ const CampaignCards = ({ stats }: CampaignCardsProps) => {
 
   if (campaigns.length === 0) {
     return (
-      <Card className="gradient-card shadow-card">
+      <Card className="glass-panel">
         <CardHeader>
           <CardTitle>Campaign Details</CardTitle>
           <CardDescription>No campaign data available yet</CardDescription>
@@ -49,7 +49,7 @@ const CampaignCards = ({ stats }: CampaignCardsProps) => {
             : 0;
 
           return (
-            <Card key={campaign.campaign_id} className="gradient-card shadow-card">
+            <Card key={campaign.campaign_id} className="glass-panel glass-panel-hover">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -95,7 +95,7 @@ const CampaignCards = ({ stats }: CampaignCardsProps) => {
                 </div>
 
                 {/* Rates */}
-                <div className="flex gap-4 pt-2 border-t">
+                <div className="flex gap-4 pt-2 border-t border-border/50">
                   <div className="text-center flex-1">
                     <p className="text-lg font-semibold text-foreground">
                       {campaignStats.acceptance_rate?.toFixed(1) || 0}%

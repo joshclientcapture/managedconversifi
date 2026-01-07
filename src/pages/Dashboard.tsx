@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, LogOut, BarChart3, Calendar, Globe, RefreshCw } from "lucide-react";
+import { Loader2, LogOut, BarChart3, Calendar, Globe, RefreshCw, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import StatsOverview from "@/components/dashboard/StatsOverview";
 import BookingsTable from "@/components/dashboard/BookingsTable";
 import CampaignCards from "@/components/dashboard/CampaignCards";
+import ReportsSection from "@/components/dashboard/ReportsSection";
 import Header from "@/components/Header";
 import conversifiLogo from "@/assets/conversifi-logo.svg";
+import conversifiLogoWhite from "@/assets/conversifi-logo-white.svg";
 
 interface DashboardData {
   connection: {
@@ -52,6 +54,21 @@ const Dashboard = () => {
   const [timezone, setTimezone] = useState(() => 
     localStorage.getItem('dashboard_timezone') || Intl.DateTimeFormat().resolvedOptions().timeZone
   );
+  const [isDark, setIsDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return document.documentElement.classList.contains("dark");
+    }
+    return false;
+  });
+
+  // Listen for theme changes
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDark(document.documentElement.classList.contains("dark"));
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, []);
 
   const fetchDashboardData = useCallback(async (token: string) => {
     setLoading(true);
@@ -129,7 +146,11 @@ const Dashboard = () => {
         <Card className="w-full max-w-md glass-panel shadow-card">
           <CardHeader className="text-center space-y-2">
             <div className="flex justify-center mb-4">
-              <img src={conversifiLogo} alt="Conversifi" className="h-10" />
+              <img 
+                src={isDark ? conversifiLogoWhite : conversifiLogo} 
+                alt="Conversifi" 
+                className="h-10" 
+              />
             </div>
             <CardTitle className="text-2xl font-semibold">Client Dashboard</CardTitle>
             <CardDescription>Enter your 7-digit access code</CardDescription>
@@ -207,7 +228,7 @@ const Dashboard = () => {
 
         {/* Dashboard Tabs */}
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Overview
@@ -215,6 +236,10 @@ const Dashboard = () => {
             <TabsTrigger value="bookings" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" />
               Bookings
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Reports
             </TabsTrigger>
           </TabsList>
 
@@ -245,6 +270,10 @@ const Dashboard = () => {
               timezone={timezone}
               onUpdate={() => fetchDashboardData(accessToken)}
             />
+          </TabsContent>
+
+          <TabsContent value="reports">
+            <ReportsSection connectionId={data.connection.id} />
           </TabsContent>
         </Tabs>
         </div>

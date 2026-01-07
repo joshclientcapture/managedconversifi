@@ -84,7 +84,7 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
   return (
     <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
       {statCards.map((stat) => (
-        <Card key={stat.title} className="gradient-card shadow-card">
+        <Card key={stat.title} className="glass-panel glass-panel-hover">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               {stat.title}
