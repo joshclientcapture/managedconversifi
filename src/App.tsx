@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
+import OnboardingThankYou from "./pages/OnboardingThankYou";
 import AdminProtectedRoute from "./components/AdminProtectedRoute";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/onboarding/thank-you" element={<OnboardingThankYou />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/setup" element={
             <AdminProtectedRoute>
