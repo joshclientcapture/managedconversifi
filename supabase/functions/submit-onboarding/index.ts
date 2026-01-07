@@ -113,6 +113,47 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Onboarding submission saved with ID: ${data.id}`);
 
+    // Send webhook with form data (excluding files)
+    const webhookPayload = {
+      id: data.id,
+      first_name: submissionData.first_name,
+      last_name: submissionData.last_name,
+      company_name: submissionData.company_name,
+      email: submissionData.email,
+      phone: submissionData.phone,
+      linkedin_url: submissionData.linkedin_url,
+      website_url: submissionData.website_url,
+      industry: submissionData.industry,
+      has_calendly: submissionData.has_calendly,
+      country: submissionData.country,
+      street_address: submissionData.street_address,
+      city_state: submissionData.city_state,
+      ideal_client: submissionData.ideal_client,
+      company_headcounts: submissionData.company_headcounts,
+      geography: submissionData.geography,
+      industries: submissionData.industries,
+      job_titles: submissionData.job_titles,
+      problem_solved: submissionData.problem_solved,
+      success_stories: submissionData.success_stories,
+      deal_size: submissionData.deal_size,
+      sales_person: submissionData.sales_person,
+      blacklist_urls: submissionData.blacklist_urls,
+    };
+
+    try {
+      const webhookResponse = await fetch(
+        "https://conversifi-u38982.vm.elestio.app/webhook/34f8b282-4b4b-464c-bd6d-4dfd285616d1",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(webhookPayload),
+        }
+      );
+      console.log(`Webhook sent, status: ${webhookResponse.status}`);
+    } catch (webhookError) {
+      console.error("Webhook error (non-blocking):", webhookError);
+    }
+
     return new Response(
       JSON.stringify({ success: true, id: data.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
