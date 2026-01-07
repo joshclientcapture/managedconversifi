@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Upload, User, Building, Target, Briefcase, FileText, Send } from "lucide-react";
+import { Upload, User, Target, Briefcase, FileText, Send } from "lucide-react";
 
 const INDUSTRIES = [
   "Technology & SaaS",
@@ -120,10 +121,39 @@ const Onboarding = () => {
       return;
     }
 
-    // Simulate submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    toast.success("Onboarding form submitted successfully! We'll be in touch soon.");
+    try {
+      const formDataToSend = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === "companyHeadcounts") {
+          formDataToSend.append(key, JSON.stringify(value));
+        } else {
+          formDataToSend.append(key, value as string);
+        }
+      });
+
+      files.forEach((file, index) => {
+        formDataToSend.append(`file_${index}`, file);
+      });
+
+      const { data, error } = await supabase.functions.invoke("submit-onboarding", {
+        body: formDataToSend,
+      });
+
+      if (error) throw error;
+
+      toast.success("Onboarding form submitted successfully! We'll be in touch soon.");
+      setFormData({
+        firstName: "", lastName: "", companyName: "", email: "", phone: "",
+        linkedinUrl: "", websiteUrl: "", industry: "", hasCalendly: "",
+        country: "", streetAddress: "", cityState: "", idealClient: "",
+        companyHeadcounts: [], geography: "", industries: "", jobTitles: "",
+        problemSolved: "", successStories: "", dealSize: "", salesPerson: "", blacklistUrls: "",
+      });
+      setFiles([]);
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("Failed to submit form. Please try again.");
+    }
     setIsSubmitting(false);
   };
 

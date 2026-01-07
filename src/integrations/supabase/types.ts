@@ -219,6 +219,93 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_submissions: {
+        Row: {
+          blacklist_urls: string | null
+          city_state: string
+          company_headcounts: Json | null
+          company_name: string
+          country: string
+          created_at: string
+          deal_size: string | null
+          email: string
+          file_urls: Json | null
+          first_name: string
+          geography: string | null
+          has_calendly: string
+          id: string
+          ideal_client: string | null
+          industries: string | null
+          industry: string
+          job_titles: string | null
+          last_name: string
+          linkedin_url: string
+          phone: string
+          problem_solved: string | null
+          sales_person: string | null
+          street_address: string
+          success_stories: string | null
+          updated_at: string
+          website_url: string
+        }
+        Insert: {
+          blacklist_urls?: string | null
+          city_state: string
+          company_headcounts?: Json | null
+          company_name: string
+          country: string
+          created_at?: string
+          deal_size?: string | null
+          email: string
+          file_urls?: Json | null
+          first_name: string
+          geography?: string | null
+          has_calendly: string
+          id?: string
+          ideal_client?: string | null
+          industries?: string | null
+          industry: string
+          job_titles?: string | null
+          last_name: string
+          linkedin_url: string
+          phone: string
+          problem_solved?: string | null
+          sales_person?: string | null
+          street_address: string
+          success_stories?: string | null
+          updated_at?: string
+          website_url: string
+        }
+        Update: {
+          blacklist_urls?: string | null
+          city_state?: string
+          company_headcounts?: Json | null
+          company_name?: string
+          country?: string
+          created_at?: string
+          deal_size?: string | null
+          email?: string
+          file_urls?: Json | null
+          first_name?: string
+          geography?: string | null
+          has_calendly?: string
+          id?: string
+          ideal_client?: string | null
+          industries?: string | null
+          industry?: string
+          job_titles?: string | null
+          last_name?: string
+          linkedin_url?: string
+          phone?: string
+          problem_solved?: string | null
+          sales_person?: string | null
+          street_address?: string
+          success_stories?: string | null
+          updated_at?: string
+          website_url?: string
+        }
+        Relationships: []
+      }
       reports: {
         Row: {
           client_connection_id: string
