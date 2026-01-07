@@ -243,6 +243,7 @@ export type Database = {
           phone: string
           problem_solved: string | null
           sales_person: string | null
+          service_description: string | null
           street_address: string
           success_stories: string | null
           updated_at: string
@@ -271,6 +272,7 @@ export type Database = {
           phone: string
           problem_solved?: string | null
           sales_person?: string | null
+          service_description?: string | null
           street_address: string
           success_stories?: string | null
           updated_at?: string
@@ -299,6 +301,7 @@ export type Database = {
           phone?: string
           problem_solved?: string | null
           sales_person?: string | null
+          service_description?: string | null
           street_address?: string
           success_stories?: string | null
           updated_at?: string
