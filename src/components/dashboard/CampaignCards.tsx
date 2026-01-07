@@ -31,18 +31,11 @@ const CampaignCards = ({ stats }: CampaignCardsProps) => {
   }
 
   const getStatusBadge = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'active':
-        return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Active</Badge>;
-      case 'paused':
-        return <Badge variant="secondary">Paused</Badge>;
-      case 'rate_limited':
-        return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">Rate Limited</Badge>;
-      case 'completed':
-        return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Completed</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+    // Only show "Paused" if explicitly paused, otherwise show "Active"
+    if (status?.toLowerCase() === 'paused') {
+      return <Badge variant="secondary">Paused</Badge>;
     }
+    return <Badge className="bg-green-500/10 text-green-600 border-green-500/20">Active</Badge>;
   };
 
   return (

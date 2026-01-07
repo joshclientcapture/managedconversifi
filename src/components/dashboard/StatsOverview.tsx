@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, MessageSquare, Reply, Handshake, CalendarCheck, TrendingUp, Target, Clock } from "lucide-react";
+import { MessageSquare, Reply, Handshake, CalendarCheck, Send } from "lucide-react";
 
 interface StatsOverviewProps {
   stats: {
@@ -13,11 +13,19 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
 
   const statCards = [
     {
-      title: "Total Prospects",
-      value: latest.total_prospects || 0,
-      icon: Users,
+      title: "Connection Requests Sent",
+      value: latest.pending_requests || 0,
+      icon: Send,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10"
+    },
+    {
+      title: "Connections Made",
+      value: latest.connections_made || 0,
+      icon: Handshake,
+      color: "text-amber-500",
+      bgColor: "bg-amber-500/10",
+      subValue: latest.acceptance_rate ? `${latest.acceptance_rate.toFixed(1)}% rate` : null
     },
     {
       title: "Messages Sent",
@@ -35,21 +43,6 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
       subValue: latest.response_rate ? `${latest.response_rate.toFixed(1)}% rate` : null
     },
     {
-      title: "Connections Made",
-      value: latest.connections_made || 0,
-      icon: Handshake,
-      color: "text-amber-500",
-      bgColor: "bg-amber-500/10",
-      subValue: latest.acceptance_rate ? `${latest.acceptance_rate.toFixed(1)}% rate` : null
-    },
-    {
-      title: "Pending Requests",
-      value: latest.pending_requests || 0,
-      icon: Clock,
-      color: "text-orange-500",
-      bgColor: "bg-orange-500/10"
-    },
-    {
       title: "Meetings Booked",
       value: latest.meetings_booked || 0,
       icon: CalendarCheck,
@@ -60,26 +53,34 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
 
   return (
     <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
-      {statCards.map((stat) => (
-        <Card key={stat.title} className="gradient-card shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              {stat.title}
-            </CardTitle>
-            <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {stat.value.toLocaleString()}
-            </div>
-            {stat.subValue && (
-              <p className="text-xs text-muted-foreground mt-1">{stat.subValue}</p>
-            )}
-          </CardContent>
-        </Card>
-      ))}
+      {statCards.map((stat, index) => {
+        const isLast = index === statCards.length - 1;
+        const isOddTotal = statCards.length % 2 !== 0;
+        
+        return (
+          <Card 
+            key={stat.title} 
+            className={`gradient-card shadow-card ${isLast && isOddTotal ? 'col-span-2 lg:col-span-1' : ''}`}
+          >
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                {stat.title}
+              </CardTitle>
+              <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {stat.value.toLocaleString()}
+              </div>
+              {stat.subValue && (
+                <p className="text-xs text-muted-foreground mt-1">{stat.subValue}</p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };
