@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Upload, FileText, Trash2, Pencil, X, Check } from "lucide-react";
+import { Loader2, Upload, FileText, Trash2, Pencil, X, Check, ExternalLink, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 
@@ -53,6 +53,8 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
   const [loadingReports, setLoadingReports] = useState(false);
   const [editingReportId, setEditingReportId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingDateReportId, setEditingDateReportId] = useState<string | null>(null);
+  const [editingDate, setEditingDate] = useState("");
   const [deletingReportId, setDeletingReportId] = useState<string | null>(null);
 
   // Update selection when preselectedConnectionId changes
@@ -194,6 +196,40 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
     setEditingName("");
   };
 
+  const startEditingDate = (report: Report) => {
+    setEditingDateReportId(report.id);
+    setEditingDate(report.report_date);
+  };
+
+  const cancelEditingDate = () => {
+    setEditingDateReportId(null);
+    setEditingDate("");
+  };
+
+  const handleChangeDate = async (reportId: string) => {
+    if (!editingDate) {
+      toast.error("Date cannot be empty");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("reports")
+        .update({ report_date: editingDate })
+        .eq("id", reportId);
+
+      if (error) throw error;
+
+      toast.success("Report date updated");
+      setEditingDateReportId(null);
+      setEditingDate("");
+      fetchReports();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update date");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
@@ -268,6 +304,32 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
                               <X className="h-4 w-4" />
                             </Button>
                           </>
+                        ) : editingDateReportId === report.id ? (
+                          <>
+                            <Input
+                              type="date"
+                              value={editingDate}
+                              onChange={(e) => setEditingDate(e.target.value)}
+                              className="flex-1 h-8"
+                              autoFocus
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => handleChangeDate(report.id)}
+                            >
+                              <Check className="h-4 w-4 text-green-600" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={cancelEditingDate}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </>
                         ) : (
                           <>
                             <div className="flex-1 min-w-0">
@@ -278,7 +340,26 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
+                              onClick={() => window.open(report.report_url, "_blank")}
+                              title="View report"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => startEditingDate(report)}
+                              title="Change date"
+                            >
+                              <Calendar className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
                               onClick={() => startEditing(report)}
+                              title="Rename"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>
@@ -288,6 +369,7 @@ const ReportUploader = ({ connections, open, onClose, preselectedConnectionId }:
                               className="h-8 w-8 text-destructive hover:text-destructive"
                               onClick={() => handleDelete(report.id)}
                               disabled={deletingReportId === report.id}
+                              title="Delete"
                             >
                               {deletingReportId === report.id ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
