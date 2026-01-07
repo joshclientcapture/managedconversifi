@@ -71,10 +71,8 @@ serve(async (req) => {
     // Get latest stats for summary
     const latestStats = campaignStats?.[0] || null;
     
-    // Count actual bookings (scheduled, not canceled)
-    const actualMeetingsBooked = (bookings || []).filter(
-      (b: any) => b.event_status !== 'canceled'
-    ).length;
+    // Count all bookings (including canceled)
+    const actualMeetingsBooked = (bookings || []).length;
 
     console.log(`Found ${campaignStats?.length || 0} stat records and ${bookings?.length || 0} bookings (${actualMeetingsBooked} active)`);
 
