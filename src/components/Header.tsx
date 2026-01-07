@@ -7,7 +7,11 @@ import { toast } from "sonner";
 import conversifiLogo from "@/assets/conversifi-logo.svg";
 import conversifiLogoWhite from "@/assets/conversifi-logo-white.svg";
 
-const Header = () => {
+interface HeaderProps {
+  hideLogout?: boolean;
+}
+
+const Header = ({ hideLogout = false }: HeaderProps) => {
   const navigate = useNavigate();
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== "undefined") {
@@ -84,16 +88,18 @@ const Header = () => {
               <Moon className={`h-5 w-5 transition-all duration-300 ${isDark ? '-rotate-90 scale-0' : 'rotate-0 scale-100'}`} />
               <span className="sr-only">Toggle theme</span>
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="rounded-full"
-              title="Log out"
-            >
-              <LogOut className="h-5 w-5" />
-              <span className="sr-only">Log out</span>
-            </Button>
+            {!hideLogout && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                className="rounded-full"
+                title="Log out"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="sr-only">Log out</span>
+              </Button>
+            )}
           </div>
         </div>
       </header>
