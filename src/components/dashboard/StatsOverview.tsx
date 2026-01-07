@@ -12,16 +12,24 @@ interface StatsOverviewProps {
 const StatsOverview = ({ stats }: StatsOverviewProps) => {
   const latest = stats.latest || {};
   
-  // Sum up connection_requests_sent from all campaigns to get the real total
+  // Get totals from campaign_data
   const campaigns = latest.campaign_data?.campaigns || [];
-  const totalConnectionRequestsSent = campaigns.reduce((sum: number, campaign: any) => {
-    return sum + (campaign.stats?.connection_requests_sent || 0);
+  const totals = latest.campaign_data?.totals || {};
+  
+  // Use total_sent from totals for connection requests sent
+  const totalSent = totals.total_sent || campaigns.reduce((sum: number, campaign: any) => {
+    return sum + (campaign.stats?.total_sent || 0);
+  }, 0);
+  
+  // Sum inmails_sent + messages_sent from all campaigns for Messages Sent
+  const totalMessagesSent = campaigns.reduce((sum: number, campaign: any) => {
+    return sum + (campaign.stats?.inmails_sent || 0) + (campaign.stats?.messages_sent || 0);
   }, 0);
 
   const statCards = [
     {
       title: "Connection Requests Sent",
-      value: totalConnectionRequestsSent,
+      value: totalSent,
       icon: Send,
       color: "text-blue-500",
       bgColor: "bg-blue-500/10"
@@ -36,7 +44,7 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
     },
     {
       title: "Messages Sent",
-      value: latest.messages_sent || latest.total_sent || 0,
+      value: totalMessagesSent,
       icon: MessageSquare,
       color: "text-violet-500",
       bgColor: "bg-violet-500/10"
