@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -129,12 +129,15 @@ const WebhookDetailsDialog = ({ connection, open, onClose, onRecreate }: Webhook
   };
 
   // Fetch webhooks when dialog opens
-  const handleOpenChange = (isOpen: boolean) => {
-    if (isOpen && connection) {
+  useEffect(() => {
+    if (open && connection) {
       fetchWebhooks();
     } else {
       setWebhooks([]);
     }
+  }, [open, connection]);
+
+  const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
       onClose();
     }
