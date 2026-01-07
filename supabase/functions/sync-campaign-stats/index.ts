@@ -12,7 +12,18 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Starting campaign stats sync...');
+    // Parse optional access_token from request body for single-client sync
+    let targetAccessToken: string | null = null;
+    if (req.method === 'POST') {
+      try {
+        const body = await req.json();
+        targetAccessToken = body.access_token || null;
+      } catch {
+        // No body or invalid JSON, sync all
+      }
+    }
+
+    console.log('Starting campaign stats sync...', targetAccessToken ? `for ${targetAccessToken}` : 'for all');
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -27,12 +38,19 @@ serve(async (req) => {
       );
     }
 
-    // Get all active client connections with Conversifi webhooks
-    const { data: connections, error: fetchError } = await supabase
+    // Build query for client connections
+    let query = supabase
       .from('client_connections')
       .select('id, client_name, access_token, conversifi_webhook_url')
       .eq('is_active', true)
       .not('conversifi_webhook_url', 'is', null);
+
+    // Filter by access_token if provided
+    if (targetAccessToken) {
+      query = query.eq('access_token', targetAccessToken);
+    }
+
+    const { data: connections, error: fetchError } = await query;
 
     if (fetchError) {
       console.error('Error fetching connections:', fetchError);
@@ -40,9 +58,12 @@ serve(async (req) => {
     }
 
     if (!connections || connections.length === 0) {
-      console.log('No active connections with Conversifi webhooks found');
+      const message = targetAccessToken 
+        ? 'Connection not found or has no Conversifi webhook configured'
+        : 'No active connections with Conversifi webhooks found';
+      console.log(message);
       return new Response(
-        JSON.stringify({ success: true, message: 'No connections to sync', synced: 0 }),
+        JSON.stringify({ success: false, error: message, synced: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
