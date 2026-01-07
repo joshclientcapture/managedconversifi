@@ -21,6 +21,7 @@ serve(async (req) => {
       watched_event_types,
       ghl_location_id, 
       ghl_location_name,
+      ghl_api_key,
       slack_channel_id, 
       slack_channel_name,
       conversifi_webhook_url
@@ -152,6 +153,7 @@ serve(async (req) => {
           : null,
         ghl_location_id,
         ghl_location_name,
+        ghl_api_key,
         slack_channel_id,
         slack_channel_name,
         conversifi_webhook_url,

@@ -136,6 +136,7 @@ export type Database = {
           client_name: string
           conversifi_webhook_url: string | null
           created_at: string | null
+          ghl_api_key: string | null
           ghl_location_id: string
           ghl_location_name: string
           id: string
@@ -154,6 +155,7 @@ export type Database = {
           client_name: string
           conversifi_webhook_url?: string | null
           created_at?: string | null
+          ghl_api_key?: string | null
           ghl_location_id: string
           ghl_location_name: string
           id?: string
@@ -172,6 +174,7 @@ export type Database = {
           client_name?: string
           conversifi_webhook_url?: string | null
           created_at?: string | null
+          ghl_api_key?: string | null
           ghl_location_id?: string
           ghl_location_name?: string
           id?: string

@@ -42,6 +42,7 @@ const formSchema = z.object({
   clientName: z.string().min(1, "Client name is required"),
   calendlyToken: z.string().min(1, "Calendly API Token is required"),
   ghlLocation: z.string().min(1, "Please select a GHL Location"),
+  ghlApiKey: z.string().min(1, "GHL API Key is required"),
   slackChannel: z.string().min(1, "Please select a Slack channel"),
   conversifiWebhook: z.string().url("Please enter a valid URL"),
 });
@@ -137,6 +138,7 @@ const IntegrationForm = () => {
       clientName: "",
       calendlyToken: "",
       ghlLocation: "",
+      ghlApiKey: "",
       slackChannel: "",
       conversifiWebhook: "",
     },
@@ -326,6 +328,7 @@ const IntegrationForm = () => {
           watched_event_types: selectedEventTypes.length > 0 ? selectedEventTypes : null,
           ghl_location_id: values.ghlLocation,
           ghl_location_name: selectedLocation?.locationName || '',
+          ghl_api_key: values.ghlApiKey,
           slack_channel_id: values.slackChannel,
           slack_channel_name: selectedChannel?.name || '',
           conversifi_webhook_url: values.conversifiWebhook
@@ -768,6 +771,39 @@ const IntegrationForm = () => {
                     </FormItem>
                   )}
                 />
+
+                {/* GHL API Key - shown when location is selected */}
+                {form.watch('ghlLocation') && (
+                  <FormField
+                    control={form.control}
+                    name="ghlApiKey"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-foreground font-medium">GHL API Key</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="password"
+                            placeholder="Enter the API key for this GHL location"
+                            className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all font-mono text-sm"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription className="text-xs text-muted-foreground">
+                          Get this from{' '}
+                          <a 
+                            href={`https://app.gohighlevel.com/v2/location/${form.watch('ghlLocation')}/settings/private-integrations`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            GHL &gt; Settings &gt; Private Integrations
+                          </a>
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <FormField
                   control={form.control}
