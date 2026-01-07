@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,11 +33,23 @@ interface EditConnectionModalProps {
 const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModalProps) => {
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    client_name: connection?.client_name || '',
-    ghl_api_key: connection?.ghl_api_key || '',
-    conversifi_webhook_url: connection?.conversifi_webhook_url || '',
-    is_active: connection?.is_active ?? true,
+    client_name: '',
+    ghl_api_key: '',
+    conversifi_webhook_url: '',
+    is_active: true,
   });
+
+  // Prefill form data when connection changes
+  useEffect(() => {
+    if (connection) {
+      setFormData({
+        client_name: connection.client_name || '',
+        ghl_api_key: connection.ghl_api_key || '',
+        conversifi_webhook_url: connection.conversifi_webhook_url || '',
+        is_active: connection.is_active ?? true,
+      });
+    }
+  }, [connection]);
 
   const handleSave = async () => {
     if (!connection) return;
