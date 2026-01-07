@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare, Reply, Handshake, CalendarCheck, Send } from "lucide-react";
+import { MessageSquare, Reply, Handshake, CalendarCheck, Send, UserCheck } from "lucide-react";
 
 interface StatsOverviewProps {
   stats: {
@@ -49,28 +49,28 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
       icon: CalendarCheck,
       color: "text-emerald-500",
       bgColor: "bg-emerald-500/10"
+    },
+    {
+      title: "Active Accounts",
+      value: latest.campaign_data?.campaigns?.length || 0,
+      icon: UserCheck,
+      color: "text-cyan-500",
+      bgColor: "bg-cyan-500/10"
     }
   ];
 
   return (
     <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
-      {statCards.map((stat, index) => {
-        const isLast = index === statCards.length - 1;
-        const isOddTotal = statCards.length % 2 !== 0;
-        
-        return (
-          <Card 
-            key={stat.title} 
-            className={`gradient-card shadow-card ${isLast && isOddTotal ? 'col-span-2 lg:col-span-1' : ''}`}
-          >
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <div className={`p-2 rounded-lg ${stat.bgColor}`}>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-              </div>
-            </CardHeader>
+      {statCards.map((stat) => (
+        <Card key={stat.title} className="gradient-card shadow-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {stat.title}
+            </CardTitle>
+            <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+              <stat.icon className={`h-4 w-4 ${stat.color}`} />
+            </div>
+          </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">
                 {stat.value.toLocaleString()}
@@ -79,9 +79,8 @@ const StatsOverview = ({ stats }: StatsOverviewProps) => {
                 <p className="text-xs text-muted-foreground mt-1">{stat.subValue}</p>
               )}
             </CardContent>
-          </Card>
-        );
-      })}
+        </Card>
+      ))}
     </div>
   );
 };
