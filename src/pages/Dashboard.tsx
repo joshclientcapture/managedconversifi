@@ -10,6 +10,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import StatsOverview from "@/components/dashboard/StatsOverview";
 import BookingsTable from "@/components/dashboard/BookingsTable";
 import CampaignCards from "@/components/dashboard/CampaignCards";
+import conversifiLogo from "@/assets/conversifi-logo.svg";
 
 interface DashboardData {
   connection: {
@@ -124,14 +125,12 @@ const Dashboard = () => {
   if (!accessToken || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-md gradient-card shadow-card">
+        <Card className="w-full max-w-md glass-panel shadow-card">
           <CardHeader className="text-center space-y-2">
-            <div className="flex justify-center mb-2">
-              <div className="h-14 w-14 rounded-2xl gradient-primary shadow-button flex items-center justify-center">
-                <BarChart3 className="h-7 w-7 text-primary-foreground" />
-              </div>
+            <div className="flex justify-center mb-4">
+              <img src={conversifiLogo} alt="Conversifi" className="h-10" />
             </div>
-            <CardTitle className="text-2xl font-bold">Client Dashboard</CardTitle>
+            <CardTitle className="text-2xl font-semibold">Client Dashboard</CardTitle>
             <CardDescription>Enter your 7-digit access code</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center space-y-6">
