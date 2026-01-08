@@ -237,6 +237,214 @@ export type Database = {
         }
         Relationships: []
       }
+      kanban_boards: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          password: string | null
+          position: number | null
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          password?: string | null
+          position?: number | null
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          password?: string | null
+          position?: number | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_boards_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_card_attachments: {
+        Row: {
+          card_id: string
+          created_at: string | null
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          card_id: string
+          created_at?: string | null
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          card_id?: string
+          created_at?: string | null
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_card_attachments_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_card_comments: {
+        Row: {
+          author_id: string | null
+          card_id: string
+          content: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          author_id?: string | null
+          card_id: string
+          content: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          author_id?: string | null
+          card_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_card_comments_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_cards: {
+        Row: {
+          column_id: string
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          position: number | null
+          priority: string | null
+          title: string
+          webhook_triggered: boolean | null
+        }
+        Insert: {
+          column_id: string
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          position?: number | null
+          priority?: string | null
+          title: string
+          webhook_triggered?: boolean | null
+        }
+        Update: {
+          column_id?: string
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          position?: number | null
+          priority?: string | null
+          title?: string
+          webhook_triggered?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_cards_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_columns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_columns: {
+        Row: {
+          board_id: string
+          created_at: string | null
+          id: string
+          name: string
+          position: number | null
+          webhook_trigger_mode: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          board_id: string
+          created_at?: string | null
+          id?: string
+          name: string
+          position?: number | null
+          webhook_trigger_mode?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          board_id?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+          position?: number | null
+          webhook_trigger_mode?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kanban_columns_board_id_fkey"
+            columns: ["board_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_boards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kanban_workspaces: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          password: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          password?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          password?: string | null
+        }
+        Relationships: []
+      }
       onboarding_submissions: {
         Row: {
           blacklist_urls: string | null
@@ -382,6 +590,42 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      webhook_triggers: {
+        Row: {
+          card_id: string
+          column_id: string
+          id: string
+          triggered_at: string | null
+        }
+        Insert: {
+          card_id: string
+          column_id: string
+          id?: string
+          triggered_at?: string | null
+        }
+        Update: {
+          card_id?: string
+          column_id?: string
+          id?: string
+          triggered_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_triggers_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_triggers_column_id_fkey"
+            columns: ["column_id"]
+            isOneToOne: false
+            referencedRelation: "kanban_columns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

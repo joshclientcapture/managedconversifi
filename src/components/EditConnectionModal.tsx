@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, RefreshCw, Hash, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
 interface ClientConnection {
@@ -22,6 +29,26 @@ interface ClientConnection {
   conversifi_webhook_url: string | null;
   is_active: boolean;
   access_token: string | null;
+  slack_channel_id: string | null;
+  slack_channel_name: string | null;
+  discord_channel_id: string | null;
+  discord_channel_name: string | null;
+  discord_guild_id: string | null;
+  discord_guild_name: string | null;
+  discord_webhook_url: string | null;
+  discord_enabled: boolean | null;
+}
+
+interface SlackChannel {
+  id: string;
+  name: string;
+}
+
+interface DiscordChannel {
+  id: string;
+  name: string;
+  guildId: string;
+  guildName: string;
 }
 
 interface EditConnectionModalProps {
@@ -32,11 +59,18 @@ interface EditConnectionModalProps {
 
 const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModalProps) => {
   const [saving, setSaving] = useState(false);
+  const [slackChannels, setSlackChannels] = useState<SlackChannel[]>([]);
+  const [discordChannels, setDiscordChannels] = useState<DiscordChannel[]>([]);
+  const [loadingSlack, setLoadingSlack] = useState(false);
+  const [loadingDiscord, setLoadingDiscord] = useState(false);
+  
   const [formData, setFormData] = useState({
     client_name: '',
     ghl_api_key: '',
     conversifi_webhook_url: '',
     is_active: true,
+    slack_channel_id: '',
+    discord_channel_id: '',
   });
 
   // Prefill form data when connection changes
@@ -47,15 +81,79 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
         ghl_api_key: connection.ghl_api_key || '',
         conversifi_webhook_url: connection.conversifi_webhook_url || '',
         is_active: connection.is_active ?? true,
+        slack_channel_id: connection.slack_channel_id || '',
+        discord_channel_id: connection.discord_channel_id || '',
       });
     }
   }, [connection]);
 
+  const fetchSlackChannels = useCallback(async () => {
+    setLoadingSlack(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-slack-channels');
+      if (error) throw error;
+      setSlackChannels(data?.channels || []);
+    } catch (error) {
+      console.error('Error fetching Slack channels:', error);
+    } finally {
+      setLoadingSlack(false);
+    }
+  }, []);
+
+  const fetchDiscordChannels = useCallback(async () => {
+    setLoadingDiscord(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-discord-channels');
+      if (error) throw error;
+      setDiscordChannels(data?.channels || []);
+    } catch (error) {
+      console.error('Error fetching Discord channels:', error);
+    } finally {
+      setLoadingDiscord(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (connection) {
+      fetchSlackChannels();
+      fetchDiscordChannels();
+    }
+  }, [connection, fetchSlackChannels, fetchDiscordChannels]);
+
   const handleSave = async () => {
     if (!connection) return;
+    
+    // Validate at least one channel is selected
+    if (!formData.slack_channel_id && !formData.discord_channel_id) {
+      toast.error('Please select at least one notification channel');
+      return;
+    }
+    
     setSaving(true);
 
     try {
+      const selectedSlackChannel = slackChannels.find(ch => ch.id === formData.slack_channel_id);
+      const selectedDiscordChannel = discordChannels.find(ch => ch.id === formData.discord_channel_id);
+      
+      // Check if Discord channel changed and needs new webhook
+      const discordChanged = formData.discord_channel_id !== connection.discord_channel_id;
+      let discordWebhookUrl = connection.discord_webhook_url;
+      
+      if (discordChanged && formData.discord_channel_id) {
+        // Create new Discord webhook
+        const { data: webhookData, error: webhookError } = await supabase.functions.invoke('setup-discord-webhook', {
+          body: {
+            channel_id: formData.discord_channel_id,
+            webhook_name: `Conversifi - ${formData.client_name}`
+          }
+        });
+        
+        if (webhookError) throw webhookError;
+        discordWebhookUrl = webhookData?.webhook_url || null;
+      } else if (!formData.discord_channel_id) {
+        discordWebhookUrl = null;
+      }
+
       const { error } = await supabase
         .from('client_connections')
         .update({
@@ -63,6 +161,14 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
           ghl_api_key: formData.ghl_api_key || null,
           conversifi_webhook_url: formData.conversifi_webhook_url || null,
           is_active: formData.is_active,
+          slack_channel_id: formData.slack_channel_id || null,
+          slack_channel_name: selectedSlackChannel?.name || null,
+          discord_channel_id: formData.discord_channel_id || null,
+          discord_channel_name: selectedDiscordChannel?.name || null,
+          discord_guild_id: selectedDiscordChannel?.guildId || null,
+          discord_guild_name: selectedDiscordChannel?.guildName || null,
+          discord_webhook_url: discordWebhookUrl,
+          discord_enabled: !!formData.discord_channel_id,
         })
         .eq('id', connection.id);
 
@@ -81,9 +187,11 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
 
   if (!connection) return null;
 
+  const hasNotificationChannel = formData.slack_channel_id || formData.discord_channel_id;
+
   return (
     <Dialog open={!!connection} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Connection</DialogTitle>
           <DialogDescription>
@@ -128,6 +236,118 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
             />
           </div>
 
+          {/* Notification Channels Section */}
+          <div className="space-y-4 p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Notification Channel</span>
+              <span className="text-xs text-muted-foreground">(at least one required)</span>
+            </div>
+
+            {/* Slack Channel */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  Slack Channel
+                  {formData.slack_channel_id && <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={fetchSlackChannels}
+                  disabled={loadingSlack}
+                >
+                  <RefreshCw className={`h-3 w-3 mr-1 ${loadingSlack ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+              <Select
+                value={formData.slack_channel_id}
+                onValueChange={(value) => setFormData({ ...formData, slack_channel_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingSlack ? "Loading..." : "Select Slack channel"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {slackChannels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      <span className="flex items-center gap-2">
+                        <Hash className="h-3 w-3 text-muted-foreground" />
+                        {channel.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {connection.slack_channel_name && !formData.slack_channel_id && (
+                <p className="text-xs text-muted-foreground">
+                  Previously: #{connection.slack_channel_name}
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground font-medium">OR</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            {/* Discord Channel */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  Discord Channel
+                  {formData.discord_channel_id && <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={fetchDiscordChannels}
+                  disabled={loadingDiscord}
+                >
+                  <RefreshCw className={`h-3 w-3 mr-1 ${loadingDiscord ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+              <Select
+                value={formData.discord_channel_id}
+                onValueChange={(value) => setFormData({ ...formData, discord_channel_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingDiscord ? "Loading..." : "Select Discord channel"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  {discordChannels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      <span className="flex items-center gap-2">
+                        <Hash className="h-3 w-3 text-muted-foreground" />
+                        <span className="text-muted-foreground text-xs">{channel.guildName} /</span>
+                        {channel.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {connection.discord_channel_name && !formData.discord_channel_id && (
+                <p className="text-xs text-muted-foreground">
+                  Previously: {connection.discord_guild_name} / #{connection.discord_channel_name}
+                </p>
+              )}
+            </div>
+
+            {!hasNotificationChannel && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Please select at least one notification channel
+              </p>
+            )}
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <Label>Active</Label>
@@ -142,7 +362,7 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || !hasNotificationChannel}>
             {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Save Changes
           </Button>

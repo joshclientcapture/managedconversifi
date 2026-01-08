@@ -34,7 +34,14 @@ interface ClientConnection {
   calendly_webhook_id: string | null;
   ghl_location_name: string;
   ghl_api_key: string | null;
+  slack_channel_id: string | null;
   slack_channel_name: string | null;
+  discord_channel_id: string | null;
+  discord_channel_name: string | null;
+  discord_guild_id: string | null;
+  discord_guild_name: string | null;
+  discord_webhook_url: string | null;
+  discord_enabled: boolean | null;
   conversifi_webhook_url: string | null;
   access_token: string | null;
   is_active: boolean;
