@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail } from "lucide-react";
+import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive } from "lucide-react";
 import { toast } from "sonner";
 
 interface Booking {
@@ -125,6 +125,8 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
         return <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Canceled</Badge>;
       case 'rescheduled':
         return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">Rescheduled</Badge>;
+      case 'archived':
+        return <Badge className="bg-gray-500/10 text-gray-600 border-gray-500/20">Archived</Badge>;
       default:
         return <Badge variant="outline">{status || 'Unknown'}</Badge>;
     }
@@ -173,6 +175,7 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                 <SelectItem value="scheduled">Scheduled</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="canceled">Canceled</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -319,6 +322,18 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                                 <a href={booking.cancel_url} target="_blank" rel="noopener noreferrer">
                                   <X className="h-3 w-3" />
                                 </a>
+                              </Button>
+                            )}
+                            {booking.event_status !== 'archived' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0"
+                                onClick={() => updateBooking(booking.id, { event_status: 'archived' })}
+                                disabled={isUpdating}
+                                title="Archive"
+                              >
+                                <Archive className="h-3 w-3" />
                               </Button>
                             )}
                           </div>
