@@ -1,4 +1,4 @@
-import { Moon, Sun, LogOut, LayoutDashboard, Settings, ClipboardList, Users } from "lucide-react";
+import { Moon, Sun, LogOut, Settings, ClipboardList, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -96,53 +96,41 @@ const Header = ({ hideLogout = false }: HeaderProps) => {
               />
             </Link>
 
-            {/* Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1">
-              <Link to="/">
-                <Button
-                  variant={location.pathname === "/" ? "secondary" : "ghost"}
-                  size="sm"
-                  className="gap-2"
-                >
-                  <LayoutDashboard className="h-4 w-4" />
-                  Dashboard
-                </Button>
-              </Link>
-              {isAdmin && (
-                <>
-                  <Link to="/admin">
-                    <Button
-                      variant={location.pathname === "/admin" ? "secondary" : "ghost"}
-                      size="sm"
-                      className="gap-2"
-                    >
-                      <Users className="h-4 w-4" />
-                      Admin
-                    </Button>
-                  </Link>
-                  <Link to="/setup">
-                    <Button
-                      variant={location.pathname === "/setup" ? "secondary" : "ghost"}
-                      size="sm"
-                      className="gap-2"
-                    >
-                      <Settings className="h-4 w-4" />
-                      Setup
-                    </Button>
-                  </Link>
-                  <Link to="/taskboard">
-                    <Button
-                      variant={location.pathname === "/taskboard" ? "secondary" : "ghost"}
-                      size="sm"
-                      className="gap-2"
-                    >
-                      <ClipboardList className="h-4 w-4" />
-                      Tasks
-                    </Button>
-                  </Link>
-                </>
-              )}
-            </nav>
+            {/* Navigation Links - Only show on admin pages */}
+            {location.pathname !== "/" && isAdmin && (
+              <nav className="hidden md:flex items-center gap-1">
+                <Link to="/admin">
+                  <Button
+                    variant={location.pathname === "/admin" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Users className="h-4 w-4" />
+                    Admin
+                  </Button>
+                </Link>
+                <Link to="/setup">
+                  <Button
+                    variant={location.pathname === "/setup" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Settings className="h-4 w-4" />
+                    Setup
+                  </Button>
+                </Link>
+                <Link to="/taskboard">
+                  <Button
+                    variant={location.pathname === "/taskboard" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    Tasks
+                  </Button>
+                </Link>
+              </nav>
+            )}
           </div>
 
           <div className="flex items-center gap-2">

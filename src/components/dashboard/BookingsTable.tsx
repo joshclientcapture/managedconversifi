@@ -299,12 +299,12 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 px-2"
+                                className="h-7 w-7 p-0"
                                 asChild
+                                title="Reschedule"
                               >
                                 <a href={booking.reschedule_url} target="_blank" rel="noopener noreferrer">
-                                  <Calendar className="h-3 w-3 mr-1" />
-                                  Reschedule
+                                  <Calendar className="h-3 w-3" />
                                 </a>
                               </Button>
                             )}
@@ -312,12 +312,12 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 px-2 text-destructive hover:text-destructive"
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                                 asChild
+                                title="Cancel"
                               >
                                 <a href={booking.cancel_url} target="_blank" rel="noopener noreferrer">
-                                  <X className="h-3 w-3 mr-1" />
-                                  Cancel
+                                  <X className="h-3 w-3" />
                                 </a>
                               </Button>
                             )}
