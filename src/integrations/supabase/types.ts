@@ -169,12 +169,18 @@ export type Database = {
           client_name: string
           conversifi_webhook_url: string | null
           created_at: string | null
+          discord_channel_id: string | null
+          discord_channel_name: string | null
+          discord_enabled: boolean | null
+          discord_guild_id: string | null
+          discord_guild_name: string | null
+          discord_webhook_url: string | null
           ghl_api_key: string | null
           ghl_location_id: string
           ghl_location_name: string
           id: string
           is_active: boolean | null
-          slack_channel_id: string
+          slack_channel_id: string | null
           slack_channel_name: string | null
           updated_at: string | null
           watched_event_types: Json | null
@@ -188,12 +194,18 @@ export type Database = {
           client_name: string
           conversifi_webhook_url?: string | null
           created_at?: string | null
+          discord_channel_id?: string | null
+          discord_channel_name?: string | null
+          discord_enabled?: boolean | null
+          discord_guild_id?: string | null
+          discord_guild_name?: string | null
+          discord_webhook_url?: string | null
           ghl_api_key?: string | null
           ghl_location_id: string
           ghl_location_name: string
           id?: string
           is_active?: boolean | null
-          slack_channel_id: string
+          slack_channel_id?: string | null
           slack_channel_name?: string | null
           updated_at?: string | null
           watched_event_types?: Json | null
@@ -207,12 +219,18 @@ export type Database = {
           client_name?: string
           conversifi_webhook_url?: string | null
           created_at?: string | null
+          discord_channel_id?: string | null
+          discord_channel_name?: string | null
+          discord_enabled?: boolean | null
+          discord_guild_id?: string | null
+          discord_guild_name?: string | null
+          discord_webhook_url?: string | null
           ghl_api_key?: string | null
           ghl_location_id?: string
           ghl_location_name?: string
           id?: string
           is_active?: boolean | null
-          slack_channel_id?: string
+          slack_channel_id?: string | null
           slack_channel_name?: string | null
           updated_at?: string | null
           watched_event_types?: Json | null
