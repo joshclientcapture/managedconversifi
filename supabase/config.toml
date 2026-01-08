@@ -18,6 +18,12 @@ verify_jwt = false
 [functions.get-slack-channels]
 verify_jwt = false
 
+[functions.get-discord-channels]
+verify_jwt = false
+
+[functions.setup-discord-webhook]
+verify_jwt = false
+
 [functions.list-calendly-webhooks]
 verify_jwt = false
 
@@ -49,4 +55,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.submit-onboarding]
+verify_jwt = false
+
+[functions.trigger-webhook]
 verify_jwt = false
