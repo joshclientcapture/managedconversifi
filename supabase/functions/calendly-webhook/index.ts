@@ -131,6 +131,8 @@ Deno.serve(async (req: Request) => {
     
     // Extract phone from questions_and_answers or text_reminder_number
     const questionsAndAnswers = inviteeData?.questions_and_answers || [];
+    console.log('All questions from Calendly:', JSON.stringify(questionsAndAnswers));
+
     const phoneFromQA = questionsAndAnswers.find(
       (q: { question: string; answer: string }) =>
         q.question?.toLowerCase().includes('phone') ||
@@ -140,16 +142,20 @@ Deno.serve(async (req: Request) => {
     const inviteePhone = phoneFromQA || inviteeData?.text_reminder_number || null;
 
     // Extract custom questions (excluding phone-related questions)
+    // Only filter out if question specifically asks for phone/mobile
     const customQuestions = questionsAndAnswers.filter(
       (q: { question: string; answer: string }) => {
         const question = q.question?.toLowerCase() || '';
-        return !question.includes('phone') &&
-               !question.includes('number') &&
-               !question.includes('mobile');
+        const isPhoneQuestion = (
+          (question.includes('phone') && question.includes('number')) ||
+          question.includes('mobile') ||
+          question.includes('phone number')
+        );
+        return !isPhoneQuestion;
       }
     );
 
-    console.log('Custom questions extracted:', customQuestions.length, JSON.stringify(customQuestions));
+    console.log('Custom questions extracted:', customQuestions.length, 'questions:', JSON.stringify(customQuestions));
     
     // Extract scheduled event details
     const eventTime = scheduledEvent?.start_time || null;
@@ -157,9 +163,24 @@ Deno.serve(async (req: Request) => {
     const eventName = scheduledEvent?.name || 'Calendly Event';
     const eventUri = scheduledEvent?.uri || null;
     
-    // Location info
+    // Location info with join URL and formatted display
     const eventLocation = scheduledEvent?.location;
-    const locationDisplay = eventLocation?.location || eventLocation?.type || 'Virtual';
+    const meetingJoinUrl = eventLocation?.join_url || null;
+    let locationDisplay = 'Virtual';
+    let locationLink = null;
+
+    if (eventLocation?.type === 'google_conference') {
+      locationDisplay = 'Google Meet';
+      locationLink = meetingJoinUrl;
+    } else if (eventLocation?.type === 'zoom') {
+      locationDisplay = 'Zoom';
+      locationLink = meetingJoinUrl;
+    } else if (eventLocation?.type) {
+      locationDisplay = eventLocation.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+      locationLink = meetingJoinUrl;
+    }
+
+    console.log('Meeting location:', locationDisplay, 'Link:', locationLink);
     
     // Extract calendly_event_id from URI
     const calendlyEventId = eventUri?.split('/').pop() || null;
@@ -539,6 +560,15 @@ Deno.serve(async (req: Request) => {
           footer: { text: `${connection.client_name}` },
           timestamp: new Date().toISOString()
         };
+
+        // Add meeting location with link
+        if (locationLink) {
+          embed.fields.push({
+            name: '🔗 Meeting Link',
+            value: `[Join ${locationDisplay}](${locationLink})`,
+            inline: false
+          });
+        }
 
         // Add custom questions as fields (if applicable)
         console.log('Adding custom questions to Discord:', customQuestions.length);

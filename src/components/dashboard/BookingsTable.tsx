@@ -136,13 +136,26 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
   const getCustomQuestions = (booking: Booking) => {
     try {
       const questionsAndAnswers = booking.raw_payload?.payload?.questions_and_answers || [];
-      // Filter out phone-related questions
+      // Filter out phone-related questions - only filter if specifically asking for phone
       return questionsAndAnswers.filter((q: { question: string; answer: string }) => {
         const question = q.question?.toLowerCase() || '';
-        return !question.includes('phone') && !question.includes('number') && !question.includes('mobile');
+        const isPhoneQuestion = (
+          (question.includes('phone') && question.includes('number')) ||
+          question.includes('mobile') ||
+          question.includes('phone number')
+        );
+        return !isPhoneQuestion;
       });
     } catch {
       return [];
+    }
+  };
+
+  const getMeetingLink = (booking: Booking) => {
+    try {
+      return booking.raw_payload?.payload?.scheduled_event?.location?.join_url || null;
+    } catch {
+      return null;
     }
   };
 
@@ -260,7 +273,21 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">{booking.event_type_name || 'N/A'}</TableCell>
+                        <TableCell className="text-sm">
+                          {getMeetingLink(booking) ? (
+                            <a
+                              href={getMeetingLink(booking) || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1"
+                            >
+                              {booking.event_type_name || 'N/A'}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            booking.event_type_name || 'N/A'
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
                           {formatTime(booking.event_time)}
                         </TableCell>
