@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import Dashboard from "./pages/Dashboard";
+import TaskBoard from "./pages/TaskBoard";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
@@ -33,6 +34,11 @@ const App = () => (
           <Route path="/admin" element={
             <AdminProtectedRoute>
               <Admin />
+            </AdminProtectedRoute>
+          } />
+          <Route path="/taskboard" element={
+            <AdminProtectedRoute>
+              <TaskBoard />
             </AdminProtectedRoute>
           } />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
