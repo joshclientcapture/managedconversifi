@@ -32,6 +32,7 @@ interface Booking {
   showed_up: boolean | null;
   call_outcome: string | null;
   closer_notes: string | null;
+  raw_payload: any;
 }
 
 interface BookingsTableProps {
@@ -129,6 +130,19 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
     }
   };
 
+  const getCustomQuestions = (booking: Booking) => {
+    try {
+      const questionsAndAnswers = booking.raw_payload?.payload?.questions_and_answers || [];
+      // Filter out phone-related questions
+      return questionsAndAnswers.filter((q: { question: string; answer: string }) => {
+        const question = q.question?.toLowerCase() || '';
+        return !question.includes('phone') && !question.includes('number') && !question.includes('mobile');
+      });
+    } catch {
+      return [];
+    }
+  };
+
   const filteredBookings = bookings.filter(booking => {
     if (statusFilter === 'all') return true;
     if (statusFilter === 'upcoming') return booking.event_status === 'scheduled' && !isPast(booking.event_time);
@@ -203,6 +217,16 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                                 <Phone className="h-3 w-3" />
                                 {booking.contact_phone}
                               </p>
+                            )}
+                            {getCustomQuestions(booking).length > 0 && (
+                              <div className="mt-2 pt-2 border-t border-border">
+                                <p className="text-xs font-semibold text-muted-foreground mb-1">Custom Questions:</p>
+                                {getCustomQuestions(booking).map((q: { question: string; answer: string }, idx: number) => (
+                                  <div key={idx} className="text-xs text-muted-foreground mb-1">
+                                    <span className="font-medium">{q.question}:</span> {q.answer}
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
                         </TableCell>

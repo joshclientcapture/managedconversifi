@@ -132,12 +132,22 @@ Deno.serve(async (req: Request) => {
     // Extract phone from questions_and_answers or text_reminder_number
     const questionsAndAnswers = inviteeData?.questions_and_answers || [];
     const phoneFromQA = questionsAndAnswers.find(
-      (q: { question: string; answer: string }) => 
-        q.question?.toLowerCase().includes('phone') || 
+      (q: { question: string; answer: string }) =>
+        q.question?.toLowerCase().includes('phone') ||
         q.question?.toLowerCase().includes('number') ||
         q.question?.toLowerCase().includes('mobile')
     )?.answer;
     const inviteePhone = phoneFromQA || inviteeData?.text_reminder_number || null;
+
+    // Extract custom questions (excluding phone-related questions)
+    const customQuestions = questionsAndAnswers.filter(
+      (q: { question: string; answer: string }) => {
+        const question = q.question?.toLowerCase() || '';
+        return !question.includes('phone') &&
+               !question.includes('number') &&
+               !question.includes('mobile');
+      }
+    );
     
     // Extract scheduled event details
     const eventTime = scheduledEvent?.start_time || null;
@@ -374,7 +384,16 @@ Deno.serve(async (req: Request) => {
         const nameParts = (inviteeName || '').trim().split(' ');
         const firstName = nameParts[0] || inviteeName || 'Unknown';
         const lastName = nameParts.slice(1).join(' ') || '';
-        
+
+        // Format custom questions for GHL notes
+        let notes = `Calendly Booking: ${eventName}\nScheduled: ${formattedTime}`;
+        if (customQuestions.length > 0) {
+          notes += '\n\n--- Custom Questions ---';
+          customQuestions.forEach((q: { question: string; answer: string }) => {
+            notes += `\n${q.question}: ${q.answer}`;
+          });
+        }
+
         const ghlResponse = await fetch('https://services.leadconnectorhq.com/contacts/', {
           method: 'POST',
           headers: {
@@ -395,7 +414,8 @@ Deno.serve(async (req: Request) => {
               { key: 'calendly_event_id', value: calendlyEventId || '' },
               { key: 'calendly_timezone', value: inviteeTimezone || '' }
             ],
-            source: 'Calendly'
+            source: 'Calendly',
+            notes: notes
           })
         });
 
@@ -517,6 +537,17 @@ Deno.serve(async (req: Request) => {
           footer: { text: `${connection.client_name}` },
           timestamp: new Date().toISOString()
         };
+
+        // Add custom questions as fields (if applicable)
+        if (customQuestions.length > 0) {
+          customQuestions.forEach((q: { question: string; answer: string }) => {
+            embed.fields.push({
+              name: `❓ ${q.question}`,
+              value: q.answer || 'Not provided',
+              inline: false
+            });
+          });
+        }
 
         // Add client portal link in description
         if (connection.access_token) {

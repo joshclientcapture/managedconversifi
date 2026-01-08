@@ -265,14 +265,14 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
                 </Button>
               </div>
               <Select
-                value={formData.slack_channel_id}
-                onValueChange={(value) => setFormData({ ...formData, slack_channel_id: value })}
+                value={formData.slack_channel_id || "__NONE__"}
+                onValueChange={(value) => setFormData({ ...formData, slack_channel_id: value === "__NONE__" ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={loadingSlack ? "Loading..." : "Select Slack channel"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__NONE__">None</SelectItem>
                   {slackChannels.map((channel) => (
                     <SelectItem key={channel.id} value={channel.id}>
                       <span className="flex items-center gap-2">
@@ -316,14 +316,14 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
                 </Button>
               </div>
               <Select
-                value={formData.discord_channel_id}
-                onValueChange={(value) => setFormData({ ...formData, discord_channel_id: value })}
+                value={formData.discord_channel_id || "__NONE__"}
+                onValueChange={(value) => setFormData({ ...formData, discord_channel_id: value === "__NONE__" ? "" : value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={loadingDiscord ? "Loading..." : "Select Discord channel"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="__NONE__">None</SelectItem>
                   {discordChannels.map((channel) => (
                     <SelectItem key={channel.id} value={channel.id}>
                       <span className="flex items-center gap-2">
