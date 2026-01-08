@@ -14,7 +14,7 @@ import { Loader2 } from 'lucide-react';
 interface CreateColumnModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (name: string) => Promise<void>;
+  onSubmit: (name: string) => Promise<unknown>;
 }
 
 export const CreateColumnModal = ({ open, onOpenChange, onSubmit }: CreateColumnModalProps) => {

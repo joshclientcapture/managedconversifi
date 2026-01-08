@@ -15,7 +15,7 @@ import { Loader2 } from 'lucide-react';
 interface CreateWorkspaceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (name: string, password?: string) => Promise<void>;
+  onSubmit: (name: string, password?: string) => Promise<unknown>;
 }
 
 export const CreateWorkspaceModal = ({ open, onOpenChange, onSubmit }: CreateWorkspaceModalProps) => {
