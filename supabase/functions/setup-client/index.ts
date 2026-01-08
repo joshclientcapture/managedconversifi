@@ -23,15 +23,27 @@ Deno.serve(async (req: Request) => {
       ghl_api_key,
       slack_channel_id, 
       slack_channel_name,
+      discord_channel_id,
+      discord_channel_name,
+      discord_guild_id,
+      discord_guild_name,
       conversifi_webhook_url
     } = await req.json();
 
     console.log(`Setting up client with token: ${access_token?.substring(0, 8)}...`);
 
-    // Validate required fields
-    if (!access_token || !client_name || !calendly_token || !ghl_location_id || !slack_channel_id || !conversifi_webhook_url) {
+    // Validate required fields - now slack_channel_id is optional if discord is provided
+    if (!access_token || !client_name || !calendly_token || !ghl_location_id || !conversifi_webhook_url) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // At least one notification channel required
+    if (!slack_channel_id && !discord_channel_id) {
+      return new Response(
+        JSON.stringify({ error: 'At least one notification channel (Slack or Discord) is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -136,7 +148,38 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Step 3: Store connection in database with access_token
+    // Step 3: Create Discord webhook if Discord channel selected
+    let discordWebhookUrl = null;
+    if (discord_channel_id) {
+      const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
+      if (botToken) {
+        try {
+          console.log('Creating Discord webhook...');
+          const webhookResponse = await fetch(`https://discord.com/api/v10/channels/${discord_channel_id}/webhooks`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bot ${botToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              name: 'Conversifi Notifications',
+            }),
+          });
+
+          if (webhookResponse.ok) {
+            const webhookData = await webhookResponse.json();
+            discordWebhookUrl = `https://discord.com/api/webhooks/${webhookData.id}/${webhookData.token}`;
+            console.log('Discord webhook created:', webhookData.id);
+          } else {
+            console.warn('Failed to create Discord webhook:', await webhookResponse.text());
+          }
+        } catch (discordError) {
+          console.warn('Error creating Discord webhook:', discordError);
+        }
+      }
+    }
+
+    // Step 4: Store connection in database with access_token
     console.log('Storing client connection...');
     const { data, error } = await supabase
       .from('client_connections')
@@ -153,8 +196,14 @@ Deno.serve(async (req: Request) => {
         ghl_location_id,
         ghl_location_name,
         ghl_api_key,
-        slack_channel_id,
-        slack_channel_name,
+        slack_channel_id: slack_channel_id || null,
+        slack_channel_name: slack_channel_name || null,
+        discord_channel_id: discord_channel_id || null,
+        discord_channel_name: discord_channel_name || null,
+        discord_guild_id: discord_guild_id || null,
+        discord_guild_name: discord_guild_name || null,
+        discord_webhook_url: discordWebhookUrl,
+        discord_enabled: !!discord_channel_id,
         conversifi_webhook_url,
         is_active: true
       })
@@ -171,9 +220,9 @@ Deno.serve(async (req: Request) => {
 
     console.log('Client connection created successfully:', data.id);
 
-    // Step 4: Send confirmation to Slack with access token
+    // Step 5: Send confirmation to Slack with access token
     const slackToken = Deno.env.get('SLACK_BOT_TOKEN');
-    if (slackToken) {
+    if (slackToken && slack_channel_id) {
       try {
         const watchedCount = watched_event_types?.length || 'all';
         await fetch('https://slack.com/api/chat.postMessage', {
@@ -215,6 +264,34 @@ Deno.serve(async (req: Request) => {
         console.log('Slack notification sent');
       } catch (slackError) {
         console.warn('Failed to send Slack notification:', slackError);
+      }
+    }
+
+    // Step 6: Send confirmation to Discord
+    if (discordWebhookUrl) {
+      try {
+        const watchedCount = watched_event_types?.length || 'all';
+        await fetch(discordWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            embeds: [{
+              title: '✅ Client Integration Activated',
+              color: 0x57F287, // Discord green
+              fields: [
+                { name: 'Client', value: client_name, inline: true },
+                { name: 'Access Token', value: `\`${accessToken}\``, inline: true },
+                { name: 'Calendly Events', value: watchedCount === 'all' ? 'All events' : `${watchedCount} selected`, inline: true },
+                { name: 'GHL Location', value: ghl_location_name, inline: true }
+              ],
+              footer: { text: '📊 Campaign stats syncing • 🎯 Bookings active • 📨 Notifications enabled' },
+              timestamp: new Date().toISOString()
+            }]
+          })
+        });
+        console.log('Discord notification sent');
+      } catch (discordError) {
+        console.warn('Failed to send Discord notification:', discordError);
       }
     }
 

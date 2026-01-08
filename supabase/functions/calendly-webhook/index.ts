@@ -305,6 +305,34 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // Send cancellation to Discord
+      if (connection.discord_enabled && connection.discord_webhook_url) {
+        try {
+          const discordResponse = await fetch(connection.discord_webhook_url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              embeds: [{
+                title: '❌ Booking Canceled',
+                description: `**${inviteeName}** has canceled their ${eventName} appointment.`,
+                color: 0xED4245, // Discord red
+                fields: [
+                  { name: '📧 Email', value: inviteeEmail || 'Not provided', inline: true },
+                  { name: '📅 Was Scheduled', value: formattedTime, inline: true },
+                  { name: '👤 Canceled By', value: canceledBy, inline: true },
+                  { name: '💬 Reason', value: cancelReason, inline: true }
+                ],
+                footer: { text: `${connection.client_name} • ${eventName}` },
+                timestamp: new Date().toISOString()
+              }]
+            })
+          });
+          console.log('Discord cancellation notification:', discordResponse.ok ? 'sent' : 'failed');
+        } catch (discordError) {
+          console.warn('Failed to send cancellation to Discord:', discordError);
+        }
+      }
+
       return new Response(
         JSON.stringify({ success: true, message: 'Cancellation processed', client: connection.client_name }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -452,6 +480,76 @@ Deno.serve(async (req: Request) => {
         console.log('Slack notification:', slackResult.ok ? 'sent' : slackResult.error);
       } catch (slackError) {
         console.warn('Failed to send Slack notification:', slackError);
+      }
+    }
+
+    // 2b. Send Discord notification
+    if (connection.discord_enabled && connection.discord_webhook_url) {
+      try {
+        console.log('Sending Discord notification...');
+        
+        const title = isRescheduled ? '🔄 Booking Rescheduled' : '🎯 New Booking';
+        const description = isRescheduled 
+          ? `**${inviteeName}** has rescheduled their appointment.`
+          : `**${inviteeName}** has booked a ${eventName}.`;
+
+        // Build Discord embed
+        const embed: any = {
+          title,
+          description,
+          color: isRescheduled ? 0xFEE75C : 0x57F287, // Yellow for reschedule, green for new
+          fields: [
+            { name: '📅 When', value: formattedTime, inline: true },
+            { name: '📍 Location', value: locationDisplay, inline: true },
+            { name: '📧 Email', value: inviteeEmail || 'Not provided', inline: true },
+            { name: '📱 Phone', value: inviteePhone || 'Not provided', inline: true }
+          ],
+          footer: { text: `${connection.client_name} • ${eventName}` },
+          timestamp: new Date().toISOString()
+        };
+
+        // Build action buttons (Discord uses components)
+        const components: any[] = [];
+        const buttons: any[] = [];
+        
+        if (rescheduleUrl) {
+          buttons.push({
+            type: 2, // Button
+            style: 5, // Link
+            label: 'Reschedule',
+            url: rescheduleUrl
+          });
+        }
+        if (cancelUrl) {
+          buttons.push({
+            type: 2, // Button
+            style: 5, // Link (using link style since we can't actually cancel via Discord)
+            label: 'Cancel',
+            url: cancelUrl
+          });
+        }
+        
+        if (buttons.length > 0) {
+          components.push({
+            type: 1, // Action Row
+            components: buttons
+          });
+        }
+
+        const discordPayload: any = { embeds: [embed] };
+        if (components.length > 0) {
+          discordPayload.components = components;
+        }
+
+        const discordResponse = await fetch(connection.discord_webhook_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(discordPayload)
+        });
+        
+        console.log('Discord notification:', discordResponse.ok ? 'sent' : 'failed');
+      } catch (discordError) {
+        console.warn('Failed to send Discord notification:', discordError);
       }
     }
 

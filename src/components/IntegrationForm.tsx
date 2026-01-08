@@ -42,9 +42,13 @@ const formSchema = z.object({
   calendlyToken: z.string().min(1, "Calendly API Token is required"),
   ghlLocation: z.string().min(1, "Please select a GHL Location"),
   ghlApiKey: z.string().min(1, "GHL API Key is required"),
-  slackChannel: z.string().min(1, "Please select a Slack channel"),
+  slackChannel: z.string().optional(),
+  discordChannel: z.string().optional(),
   conversifiWebhook: z.string().url("Please enter a valid URL"),
-});
+}).refine(
+  (data) => data.slackChannel || data.discordChannel,
+  { message: "Please select at least one notification channel (Slack or Discord)", path: ["slackChannel"] }
+);
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -55,6 +59,14 @@ interface ServiceStatuses {
   conversifi: ConnectionStatus;
   ghl: ConnectionStatus;
   slack: ConnectionStatus;
+  discord: ConnectionStatus;
+}
+
+interface DiscordChannel {
+  id: string;
+  name: string;
+  guildId: string;
+  guildName: string;
 }
 
 interface GhlLocation {
@@ -99,8 +111,10 @@ const IntegrationForm = () => {
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [ghlLocations, setGhlLocations] = useState<GhlLocation[]>([]);
   const [slackChannels, setSlackChannels] = useState<SlackChannel[]>([]);
+  const [discordChannels, setDiscordChannels] = useState<DiscordChannel[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(true);
   const [loadingChannels, setLoadingChannels] = useState(true);
+  const [loadingDiscordChannels, setLoadingDiscordChannels] = useState(true);
   const [calendlyInfo, setCalendlyInfo] = useState<CalendlyInfo | null>(null);
   const [validatingCalendly, setValidatingCalendly] = useState(false);
   const [calendlyError, setCalendlyError] = useState<string | null>(null);
@@ -114,6 +128,7 @@ const IntegrationForm = () => {
     conversifi: "idle",
     ghl: "idle",
     slack: "idle",
+    discord: "idle",
   });
   
   // Generate access token based on client name
@@ -128,6 +143,7 @@ const IntegrationForm = () => {
       ghlLocation: "",
       ghlApiKey: "",
       slackChannel: "",
+      discordChannel: "",
       conversifiWebhook: "",
     },
     mode: "onChange",
@@ -187,7 +203,24 @@ const IntegrationForm = () => {
     }
   }, []);
 
-  // Fetch Calendly event types
+  // Fetch Discord channels from edge function
+  const fetchDiscordChannels = useCallback(async () => {
+    setLoadingDiscordChannels(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-discord-channels');
+      
+      if (error) throw error;
+      setDiscordChannels(data?.channels || []);
+      if (data?.channels?.length > 0) {
+        setStatuses(prev => ({ ...prev, discord: "connected" }));
+      }
+    } catch (error) {
+      console.error('Error fetching Discord channels:', error);
+      // Don't show error - Discord is optional
+    } finally {
+      setLoadingDiscordChannels(false);
+    }
+  }, []);
   const fetchEventTypes = useCallback(async (token: string, userUri: string) => {
     setLoadingEventTypes(true);
     try {
@@ -207,7 +240,8 @@ const IntegrationForm = () => {
   useEffect(() => {
     fetchLocations();
     fetchChannels();
-  }, [fetchLocations, fetchChannels]);
+    fetchDiscordChannels();
+  }, [fetchLocations, fetchChannels, fetchDiscordChannels]);
 
   // Validate Calendly token on blur
   const validateCalendlyToken = async (token: string) => {
@@ -328,7 +362,8 @@ const IntegrationForm = () => {
 
     try {
       const selectedLocation = ghlLocations.find(loc => loc.locationId === values.ghlLocation);
-      const selectedChannel = slackChannels.find(ch => ch.id === values.slackChannel);
+      const selectedSlackChannel = slackChannels.find(ch => ch.id === values.slackChannel);
+      const selectedDiscordChannel = discordChannels.find(ch => ch.id === values.discordChannel);
 
       const { data, error } = await supabase.functions.invoke('setup-client', {
         body: {
@@ -341,8 +376,12 @@ const IntegrationForm = () => {
           ghl_location_id: values.ghlLocation,
           ghl_location_name: selectedLocation?.locationName || '',
           ghl_api_key: values.ghlApiKey,
-          slack_channel_id: values.slackChannel,
-          slack_channel_name: selectedChannel?.name || '',
+          slack_channel_id: values.slackChannel || null,
+          slack_channel_name: selectedSlackChannel?.name || null,
+          discord_channel_id: values.discordChannel || null,
+          discord_channel_name: selectedDiscordChannel?.name || null,
+          discord_guild_id: selectedDiscordChannel?.guildId || null,
+          discord_guild_name: selectedDiscordChannel?.guildName || null,
           conversifi_webhook_url: values.conversifiWebhook
         }
       });
@@ -353,17 +392,12 @@ const IntegrationForm = () => {
         throw new Error(data?.error || 'Connection failed');
       }
 
-      // Statuses are already set via selections and validation
-      // Just ensure they're all connected on successful submit
-
       setConnectionResult(data.connection);
       setConnectionSuccess(true);
       form.reset();
       setCalendlyInfo(null);
       setEventTypes([]);
       setSelectedEventTypes([]);
-      // Generate new token for next integration
-      // Access token will be regenerated when new client name is entered
 
       setTimeout(() => {
         resetForm();
@@ -375,7 +409,8 @@ const IntegrationForm = () => {
       setStatuses(prev => ({
         ...prev,
         ghl: "error",
-        slack: "error",
+        slack: prev.slack === "connected" ? "error" : prev.slack,
+        discord: prev.discord === "connected" ? "error" : prev.discord,
       }));
     } finally {
       setIsSubmitting(false);
@@ -394,6 +429,7 @@ const IntegrationForm = () => {
       conversifi: "idle",
       ghl: "idle",
       slack: "idle",
+      discord: "idle",
     });
   };
 
@@ -439,6 +475,7 @@ const IntegrationForm = () => {
               <StatusIndicator label="Conversifi" status={statuses.conversifi} />
               <StatusIndicator label="GHL" status={statuses.ghl} />
               <StatusIndicator label="Slack" status={statuses.slack} />
+              <StatusIndicator label="Discord" status={statuses.discord} />
             </div>
           </div>
 
@@ -855,6 +892,68 @@ const IntegrationForm = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Discord Channel Selector */}
+                <FormField
+                  control={form.control}
+                  name="discordChannel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-center justify-between">
+                        <FormLabel className="text-foreground font-medium">
+                          Discord Channel
+                          <span className="text-muted-foreground font-normal ml-1">(optional)</span>
+                        </FormLabel>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={fetchDiscordChannels}
+                          disabled={loadingDiscordChannels}
+                        >
+                          <RefreshCw className={`h-3 w-3 mr-1 ${loadingDiscordChannels ? 'animate-spin' : ''}`} />
+                          Refresh
+                        </Button>
+                      </div>
+                      <Select onValueChange={(value) => {
+                        field.onChange(value);
+                        setStatuses(prev => ({ ...prev, discord: "connected" }));
+                      }} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
+                            <SelectValue placeholder={loadingDiscordChannels ? "Loading channels..." : "Select Discord channel (optional)"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-popover border shadow-lg max-h-60 z-50">
+                          {discordChannels.length === 0 ? (
+                            <div className="p-3 text-sm text-muted-foreground text-center">
+                              {loadingDiscordChannels ? "Loading..." : "No Discord channels available. Invite the bot to a server first."}
+                            </div>
+                          ) : (
+                            discordChannels.map((channel) => (
+                              <SelectItem
+                                key={channel.id}
+                                value={channel.id}
+                                className="cursor-pointer hover:bg-accent focus:bg-accent"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Hash className="h-3 w-3 text-muted-foreground" />
+                                  <span className="text-muted-foreground text-xs">{channel.guildName} /</span>
+                                  {channel.name}
+                                </span>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        Optional: Send booking notifications to Discord instead of or in addition to Slack
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
