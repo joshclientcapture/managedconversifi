@@ -123,6 +123,8 @@ const IntegrationForm = () => {
   const [loadingEventTypes, setLoadingEventTypes] = useState(false);
   const [validatingConversifi, setValidatingConversifi] = useState(false);
   const [conversifiError, setConversifiError] = useState<string | null>(null);
+  const [validatingGhlApiKey, setValidatingGhlApiKey] = useState(false);
+  const [ghlApiKeyError, setGhlApiKeyError] = useState<string | null>(null);
   const [statuses, setStatuses] = useState<ServiceStatuses>({
     calendly: "idle",
     conversifi: "idle",
@@ -331,6 +333,46 @@ const IntegrationForm = () => {
       setStatuses(prev => ({ ...prev, conversifi: "error" }));
     } finally {
       setValidatingConversifi(false);
+    }
+  };
+
+  // Validate GHL API key by attempting to fetch contacts
+  const validateGhlApiKey = async (apiKey: string) => {
+    const locationId = form.getValues('ghlLocation');
+    
+    if (!apiKey || apiKey.length < 10) {
+      setGhlApiKeyError(null);
+      setStatuses(prev => ({ ...prev, ghl: locationId ? "connected" : "idle" }));
+      return;
+    }
+
+    if (!locationId) {
+      setGhlApiKeyError('Please select a GHL location first');
+      return;
+    }
+
+    setValidatingGhlApiKey(true);
+    setGhlApiKeyError(null);
+    setStatuses(prev => ({ ...prev, ghl: "connecting" }));
+
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-ghl-api-key', {
+        body: { api_key: apiKey, location_id: locationId }
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Invalid API key');
+      }
+
+      setStatuses(prev => ({ ...prev, ghl: "connected" }));
+    } catch (error) {
+      console.error('GHL API key validation error:', error);
+      setGhlApiKeyError(error instanceof Error ? error.message : 'Failed to validate API key');
+      setStatuses(prev => ({ ...prev, ghl: "error" }));
+    } finally {
+      setValidatingGhlApiKey(false);
     }
   };
 
@@ -829,6 +871,10 @@ const IntegrationForm = () => {
                             placeholder="Enter the API key for this GHL location"
                             className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all font-mono text-sm"
                             {...field}
+                            onBlur={(e) => {
+                              field.onBlur();
+                              validateGhlApiKey(e.target.value);
+                            }}
                           />
                         </FormControl>
                         <FormDescription className="text-xs text-muted-foreground">
@@ -842,6 +888,24 @@ const IntegrationForm = () => {
                             GHL &gt; Settings &gt; Private Integrations
                           </a>
                         </FormDescription>
+                        {validatingGhlApiKey && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Validating API key...
+                          </p>
+                        )}
+                        {statuses.ghl === "connected" && !validatingGhlApiKey && field.value && (
+                          <p className="text-xs text-success flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            API key is valid and can access contacts
+                          </p>
+                        )}
+                        {ghlApiKeyError && (
+                          <p className="text-xs text-destructive flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {ghlApiKeyError}
+                          </p>
+                        )}
                         <FormMessage />
                       </FormItem>
                     )}
