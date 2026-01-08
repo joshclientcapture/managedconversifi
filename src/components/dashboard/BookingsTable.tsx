@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail } from "lucide-react";
+import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface Booking {
@@ -56,6 +56,7 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
   const [notesDialog, setNotesDialog] = useState<{ booking: Booking; notes: string } | null>(null);
   const [savingNotes, setSavingNotes] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
   const formatTime = (dateStr: string | null) => {
     if (!dateStr) return 'N/A';
@@ -125,6 +126,8 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
         return <Badge className="bg-red-500/10 text-red-600 border-red-500/20">Canceled</Badge>;
       case 'rescheduled':
         return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">Rescheduled</Badge>;
+      case 'archived':
+        return <Badge className="bg-gray-500/10 text-gray-600 border-gray-500/20">Archived</Badge>;
       default:
         return <Badge variant="outline">{status || 'Unknown'}</Badge>;
     }
@@ -133,14 +136,39 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
   const getCustomQuestions = (booking: Booking) => {
     try {
       const questionsAndAnswers = booking.raw_payload?.payload?.questions_and_answers || [];
-      // Filter out phone-related questions
+      // Filter out phone-related questions - only filter if specifically asking for phone
       return questionsAndAnswers.filter((q: { question: string; answer: string }) => {
         const question = q.question?.toLowerCase() || '';
-        return !question.includes('phone') && !question.includes('number') && !question.includes('mobile');
+        const isPhoneQuestion = (
+          (question.includes('phone') && question.includes('number')) ||
+          question.includes('mobile') ||
+          question.includes('phone number')
+        );
+        return !isPhoneQuestion;
       });
     } catch {
       return [];
     }
+  };
+
+  const getMeetingLink = (booking: Booking) => {
+    try {
+      return booking.raw_payload?.payload?.scheduled_event?.location?.join_url || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const toggleQuestions = (bookingId: string) => {
+    setExpandedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(bookingId)) {
+        newSet.delete(bookingId);
+      } else {
+        newSet.add(bookingId);
+      }
+      return newSet;
+    });
   };
 
   const filteredBookings = bookings.filter(booking => {
@@ -173,6 +201,7 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                 <SelectItem value="scheduled">Scheduled</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
                 <SelectItem value="canceled">Canceled</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -220,17 +249,45 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                             )}
                             {getCustomQuestions(booking).length > 0 && (
                               <div className="mt-2 pt-2 border-t border-border">
-                                <p className="text-xs font-semibold text-muted-foreground mb-1">Custom Questions:</p>
-                                {getCustomQuestions(booking).map((q: { question: string; answer: string }, idx: number) => (
-                                  <div key={idx} className="text-xs text-muted-foreground mb-1">
-                                    <span className="font-medium">{q.question}:</span> {q.answer}
+                                <button
+                                  onClick={() => toggleQuestions(booking.id)}
+                                  className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-1 w-full"
+                                >
+                                  {expandedQuestions.has(booking.id) ? (
+                                    <ChevronUp className="h-3 w-3 text-gray-400" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3 text-gray-400" />
+                                  )}
+                                  <span>Custom Questions ({getCustomQuestions(booking).length})</span>
+                                </button>
+                                {expandedQuestions.has(booking.id) && (
+                                  <div className="pl-4">
+                                    {getCustomQuestions(booking).map((q: { question: string; answer: string }, idx: number) => (
+                                      <div key={idx} className="text-xs text-muted-foreground mb-1">
+                                        <span className="font-medium">{q.question}:</span> {q.answer}
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                )}
                               </div>
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm">{booking.event_type_name || 'N/A'}</TableCell>
+                        <TableCell className="text-sm">
+                          {getMeetingLink(booking) ? (
+                            <a
+                              href={getMeetingLink(booking) || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline flex items-center gap-1"
+                            >
+                              {booking.event_type_name || 'N/A'}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          ) : (
+                            booking.event_type_name || 'N/A'
+                          )}
+                        </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
                           {formatTime(booking.event_time)}
                         </TableCell>
@@ -319,6 +376,18 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                                 <a href={booking.cancel_url} target="_blank" rel="noopener noreferrer">
                                   <X className="h-3 w-3" />
                                 </a>
+                              </Button>
+                            )}
+                            {booking.event_status !== 'archived' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0"
+                                onClick={() => updateBooking(booking.id, { event_status: 'archived' })}
+                                disabled={isUpdating}
+                                title="Archive"
+                              >
+                                <Archive className="h-3 w-3" />
                               </Button>
                             )}
                           </div>
