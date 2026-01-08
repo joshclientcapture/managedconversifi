@@ -16,7 +16,7 @@ interface CreateBoardModalProps {
   open: boolean;
   workspaceName?: string;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (name: string, password?: string) => Promise<void>;
+  onSubmit: (name: string, password?: string) => Promise<unknown>;
 }
 
 export const CreateBoardModal = ({ open, workspaceName, onOpenChange, onSubmit }: CreateBoardModalProps) => {

@@ -13,7 +13,7 @@ import { ConfirmDialog } from '@/components/kanban/ConfirmDialog';
 import { PasswordModal } from '@/components/kanban/PasswordModal';
 import { ColumnWebhookModal } from '@/components/kanban/ColumnWebhookModal';
 import { CardDetailSheet } from '@/components/kanban/CardDetailSheet';
-import { Header } from '@/components/Header';
+import Header from '@/components/Header';
 import { Loader2 } from 'lucide-react';
 
 const TaskBoard = () => {

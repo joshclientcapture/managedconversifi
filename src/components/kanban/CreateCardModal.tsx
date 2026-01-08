@@ -23,7 +23,7 @@ interface CreateCardModalProps {
   open: boolean;
   columnName?: string;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (title: string, description?: string, priority?: string, dueDate?: string) => Promise<void>;
+  onSubmit: (title: string, description?: string, priority?: string, dueDate?: string) => Promise<unknown>;
 }
 
 export const CreateCardModal = ({ open, columnName, onOpenChange, onSubmit }: CreateCardModalProps) => {
