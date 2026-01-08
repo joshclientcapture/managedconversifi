@@ -11,7 +11,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { booking_id, access_token, showed_up, call_outcome, closer_notes } = await req.json();
+    const { booking_id, access_token, showed_up, call_outcome, closer_notes, event_status } = await req.json();
 
     if (!booking_id || !access_token) {
       return new Response(
@@ -50,8 +50,9 @@ Deno.serve(async (req: Request) => {
     if (showed_up !== undefined) updateData.showed_up = showed_up;
     if (call_outcome !== undefined) updateData.call_outcome = call_outcome;
     if (closer_notes !== undefined) updateData.closer_notes = closer_notes;
+    if (event_status !== undefined) updateData.event_status = event_status;
 
-    // Update status to completed if marking showed_up
+    // Update status to completed if marking showed_up (overrides explicit event_status)
     if (showed_up === true) {
       updateData.event_status = 'completed';
     }

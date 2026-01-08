@@ -46,6 +46,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         name: 'Conversifi Notifications',
+        avatar: 'https://client.conversifi.io/discordlogo.png',
       }),
     });
 
