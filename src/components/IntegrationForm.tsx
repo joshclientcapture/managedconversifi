@@ -869,28 +869,48 @@ const IntegrationForm = () => {
                             Slack Channel
                             {field.value && <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
                           </FormLabel>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                            onClick={fetchChannels}
-                            disabled={loadingChannels}
-                          >
-                            <RefreshCw className={`h-3 w-3 mr-1 ${loadingChannels ? 'animate-spin' : ''}`} />
-                            Refresh
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {field.value && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  field.onChange("");
+                                  setStatuses(prev => ({ ...prev, slack: "idle" }));
+                                }}
+                              >
+                                <X className="h-3 w-3 mr-1" />
+                                Clear
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={fetchChannels}
+                              disabled={loadingChannels}
+                            >
+                              <RefreshCw className={`h-3 w-3 mr-1 ${loadingChannels ? 'animate-spin' : ''}`} />
+                              Refresh
+                            </Button>
+                          </div>
                         </div>
                         <Select 
                           onValueChange={(value) => {
                             field.onChange(value);
                             setStatuses(prev => ({ ...prev, slack: "connected" }));
-                            // Clear Discord when Slack is selected (optional: keep both)
+                            // Clear Discord when Slack is selected
+                            form.setValue("discordChannel", "");
+                            setStatuses(prev => ({ ...prev, discord: "idle" }));
                           }} 
                           value={field.value}
+                          disabled={!!form.watch("discordChannel")}
                         >
                           <FormControl>
-                            <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
+                            <SelectTrigger className={`h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all ${form.watch("discordChannel") ? "opacity-50" : ""}`}>
                               <SelectValue placeholder={loadingChannels ? "Loading channels..." : "Select Slack channel"} />
                             </SelectTrigger>
                           </FormControl>
@@ -931,27 +951,48 @@ const IntegrationForm = () => {
                             Discord Channel
                             {field.value && <CheckCircle2 className="h-3.5 w-3.5 text-success" />}
                           </FormLabel>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
-                            onClick={fetchDiscordChannels}
-                            disabled={loadingDiscordChannels}
-                          >
-                            <RefreshCw className={`h-3 w-3 mr-1 ${loadingDiscordChannels ? 'animate-spin' : ''}`} />
-                            Refresh
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {field.value && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => {
+                                  field.onChange("");
+                                  setStatuses(prev => ({ ...prev, discord: "idle" }));
+                                }}
+                              >
+                                <X className="h-3 w-3 mr-1" />
+                                Clear
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={fetchDiscordChannels}
+                              disabled={loadingDiscordChannels}
+                            >
+                              <RefreshCw className={`h-3 w-3 mr-1 ${loadingDiscordChannels ? 'animate-spin' : ''}`} />
+                              Refresh
+                            </Button>
+                          </div>
                         </div>
                         <Select 
                           onValueChange={(value) => {
                             field.onChange(value);
                             setStatuses(prev => ({ ...prev, discord: "connected" }));
+                            // Clear Slack when Discord is selected
+                            form.setValue("slackChannel", "");
+                            setStatuses(prev => ({ ...prev, slack: "idle" }));
                           }} 
                           value={field.value}
+                          disabled={!!form.watch("slackChannel")}
                         >
                           <FormControl>
-                            <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
+                            <SelectTrigger className={`h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all ${form.watch("slackChannel") ? "opacity-50" : ""}`}>
                               <SelectValue placeholder={loadingDiscordChannels ? "Loading channels..." : "Select Discord channel"} />
                             </SelectTrigger>
                           </FormControl>
