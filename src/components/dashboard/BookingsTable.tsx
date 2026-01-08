@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive, ArchiveRestore, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface Booking {
@@ -383,7 +383,7 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                                 </a>
                               </Button>
                             )}
-                            {!booking.archived && (
+                            {!booking.archived ? (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -393,6 +393,17 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                                 title="Archive"
                               >
                                 <Archive className="h-3 w-3" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0"
+                                onClick={() => updateBooking(booking.id, { archived: false })}
+                                disabled={isUpdating}
+                                title="Unarchive"
+                              >
+                                <ArchiveRestore className="h-3 w-3" />
                               </Button>
                             )}
                           </div>
