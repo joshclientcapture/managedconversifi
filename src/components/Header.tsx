@@ -1,7 +1,7 @@
-import { Moon, Sun, LogOut } from "lucide-react";
+import { Moon, Sun, LogOut, LayoutDashboard, Settings, ClipboardList, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import conversifiLogo from "@/assets/conversifi-logo.svg";
@@ -13,6 +13,7 @@ interface HeaderProps {
 
 const Header = ({ hideLogout = false }: HeaderProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isDark, setIsDark] = useState(() => {
     if (typeof window !== "undefined") {
       return document.documentElement.classList.contains("dark");
@@ -20,6 +21,7 @@ const Header = ({ hideLogout = false }: HeaderProps) => {
     return false;
   });
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (isDark) {
@@ -39,6 +41,22 @@ const Header = ({ hideLogout = false }: HeaderProps) => {
     } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
       setIsDark(true);
     }
+  }, []);
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data, error } = await supabase.rpc('has_role', {
+          _user_id: session.user.id,
+          _role: 'admin'
+        });
+        if (!error && data === true) {
+          setIsAdmin(true);
+        }
+      }
+    };
+    checkAdminRole();
   }, []);
 
   const handleThemeToggle = () => {
@@ -69,14 +87,64 @@ const Header = ({ hideLogout = false }: HeaderProps) => {
       
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center">
-            <img 
-              src={isDark ? conversifiLogoWhite : conversifiLogo} 
-              alt="Conversifi" 
-              className={`h-8 sm:h-10 transition-all duration-300 ${isTransitioning ? 'scale-95 opacity-80' : 'scale-100 opacity-100'}`}
-            />
-          </Link>
-          
+          <div className="flex items-center gap-6">
+            <Link to="/" className="flex items-center">
+              <img
+                src={isDark ? conversifiLogoWhite : conversifiLogo}
+                alt="Conversifi"
+                className={`h-8 sm:h-10 transition-all duration-300 ${isTransitioning ? 'scale-95 opacity-80' : 'scale-100 opacity-100'}`}
+              />
+            </Link>
+
+            {/* Navigation Links */}
+            <nav className="hidden md:flex items-center gap-1">
+              <Link to="/">
+                <Button
+                  variant={location.pathname === "/" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </Button>
+              </Link>
+              {isAdmin && (
+                <>
+                  <Link to="/admin">
+                    <Button
+                      variant={location.pathname === "/admin" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <Users className="h-4 w-4" />
+                      Admin
+                    </Button>
+                  </Link>
+                  <Link to="/setup">
+                    <Button
+                      variant={location.pathname === "/setup" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Setup
+                    </Button>
+                  </Link>
+                  <Link to="/taskboard">
+                    <Button
+                      variant={location.pathname === "/taskboard" ? "secondary" : "ghost"}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      Tasks
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </nav>
+          </div>
+
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"

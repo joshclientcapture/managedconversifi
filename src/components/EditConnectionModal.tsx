@@ -143,13 +143,15 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
         // Create new Discord webhook
         const { data: webhookData, error: webhookError } = await supabase.functions.invoke('setup-discord-webhook', {
           body: {
+            client_connection_id: connection.id,
             channel_id: formData.discord_channel_id,
-            webhook_name: `Conversifi - ${formData.client_name}`
+            channel_name: selectedDiscordChannel?.name || null,
+            guild_id: selectedDiscordChannel?.guildId || null,
+            guild_name: selectedDiscordChannel?.guildName || null
           }
         });
-        
+
         if (webhookError) throw webhookError;
-        discordWebhookUrl = webhookData?.webhook_url || null;
       } else if (!formData.discord_channel_id) {
         discordWebhookUrl = null;
       }
