@@ -308,24 +308,31 @@ Deno.serve(async (req: Request) => {
       // Send cancellation to Discord
       if (connection.discord_enabled && connection.discord_webhook_url) {
         try {
+          // Build client portal URL with access code
+          const clientPortalUrl = `https://client.conversifi.io?code=${connection.access_token || ''}`;
+
+          const embed: any = {
+            title: '❌ Booking Canceled',
+            description: `**${inviteeName}** has canceled their appointment.`,
+            color: 0xED4245, // Discord red
+            fields: [
+              { name: '📅 Was Scheduled', value: formattedTime, inline: true },
+              { name: '📧 Email', value: inviteeEmail || 'Not provided', inline: true },
+              { name: '💬 Reason', value: cancelReason, inline: false }
+            ],
+            footer: { text: `${connection.client_name}` },
+            timestamp: new Date().toISOString()
+          };
+
+          // Add client portal link in description
+          if (connection.access_token) {
+            embed.description += `\n\n🔗 View booking details at: ${clientPortalUrl}`;
+          }
+
           const discordResponse = await fetch(connection.discord_webhook_url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              embeds: [{
-                title: '❌ Booking Canceled',
-                description: `**${inviteeName}** has canceled their ${eventName} appointment.`,
-                color: 0xED4245, // Discord red
-                fields: [
-                  { name: '📧 Email', value: inviteeEmail || 'Not provided', inline: true },
-                  { name: '📅 Was Scheduled', value: formattedTime, inline: true },
-                  { name: '👤 Canceled By', value: canceledBy, inline: true },
-                  { name: '💬 Reason', value: cancelReason, inline: true }
-                ],
-                footer: { text: `${connection.client_name} • ${eventName}` },
-                timestamp: new Date().toISOString()
-              }]
-            })
+            body: JSON.stringify({ embeds: [embed] })
           });
           console.log('Discord cancellation notification:', discordResponse.ok ? 'sent' : 'failed');
         } catch (discordError) {
@@ -487,11 +494,14 @@ Deno.serve(async (req: Request) => {
     if (connection.discord_enabled && connection.discord_webhook_url) {
       try {
         console.log('Sending Discord notification...');
-        
+
         const title = isRescheduled ? '🔄 Booking Rescheduled' : '🎯 New Booking';
-        const description = isRescheduled 
+        const description = isRescheduled
           ? `**${inviteeName}** has rescheduled their appointment.`
           : `**${inviteeName}** has booked a ${eventName}.`;
+
+        // Build client portal URL with access code
+        const clientPortalUrl = `https://client.conversifi.io?code=${connection.access_token || ''}`;
 
         // Build Discord embed
         const embed: any = {
@@ -500,35 +510,33 @@ Deno.serve(async (req: Request) => {
           color: isRescheduled ? 0xFEE75C : 0x57F287, // Yellow for reschedule, green for new
           fields: [
             { name: '📅 When', value: formattedTime, inline: true },
-            { name: '📍 Location', value: locationDisplay, inline: true },
             { name: '📧 Email', value: inviteeEmail || 'Not provided', inline: true },
-            { name: '📱 Phone', value: inviteePhone || 'Not provided', inline: true }
+            { name: '📱 Phone', value: inviteePhone || 'Not provided', inline: true },
+            { name: '🔑 Access Code', value: connection.access_token || 'N/A', inline: true }
           ],
-          footer: { text: `${connection.client_name} • ${eventName}` },
+          footer: { text: `${connection.client_name}` },
           timestamp: new Date().toISOString()
         };
+
+        // Add client portal link in description
+        if (connection.access_token) {
+          embed.description += `\n\n🔗 View and manage this booking at: ${clientPortalUrl}`;
+        }
 
         // Build action buttons (Discord uses components)
         const components: any[] = [];
         const buttons: any[] = [];
-        
-        if (rescheduleUrl) {
+
+        // Add client portal button as primary action
+        if (connection.access_token) {
           buttons.push({
             type: 2, // Button
             style: 5, // Link
-            label: 'Reschedule',
-            url: rescheduleUrl
+            label: 'View Booking',
+            url: clientPortalUrl
           });
         }
-        if (cancelUrl) {
-          buttons.push({
-            type: 2, // Button
-            style: 5, // Link (using link style since we can't actually cancel via Discord)
-            label: 'Cancel',
-            url: cancelUrl
-          });
-        }
-        
+
         if (buttons.length > 0) {
           components.push({
             type: 1, // Action Row
@@ -546,7 +554,7 @@ Deno.serve(async (req: Request) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(discordPayload)
         });
-        
+
         console.log('Discord notification:', discordResponse.ok ? 'sent' : 'failed');
       } catch (discordError) {
         console.warn('Failed to send Discord notification:', discordError);
