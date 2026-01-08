@@ -148,6 +148,8 @@ Deno.serve(async (req: Request) => {
                !question.includes('mobile');
       }
     );
+
+    console.log('Custom questions extracted:', customQuestions.length, JSON.stringify(customQuestions));
     
     // Extract scheduled event details
     const eventTime = scheduledEvent?.start_time || null;
@@ -539,8 +541,10 @@ Deno.serve(async (req: Request) => {
         };
 
         // Add custom questions as fields (if applicable)
+        console.log('Adding custom questions to Discord:', customQuestions.length);
         if (customQuestions.length > 0) {
           customQuestions.forEach((q: { question: string; answer: string }) => {
+            console.log('Adding question to Discord:', q.question, '=', q.answer);
             embed.fields.push({
               name: `❓ ${q.question}`,
               value: q.answer || 'Not provided',
