@@ -474,8 +474,7 @@ const IntegrationForm = () => {
               <StatusIndicator label="Calendly" status={statuses.calendly} />
               <StatusIndicator label="Conversifi" status={statuses.conversifi} />
               <StatusIndicator label="GHL" status={statuses.ghl} />
-              <StatusIndicator label="Slack" status={statuses.slack} />
-              <StatusIndicator label="Discord" status={statuses.discord} />
+              <StatusIndicator label="Notifications" status={statuses.slack === "connected" || statuses.discord === "connected" ? "connected" : "idle"} />
             </div>
           </div>
 
