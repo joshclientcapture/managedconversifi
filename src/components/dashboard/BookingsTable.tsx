@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive } from "lucide-react";
+import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface Booking {
@@ -56,6 +56,7 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
   const [notesDialog, setNotesDialog] = useState<{ booking: Booking; notes: string } | null>(null);
   const [savingNotes, setSavingNotes] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
 
   const formatTime = (dateStr: string | null) => {
     if (!dateStr) return 'N/A';
@@ -145,6 +146,18 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
     }
   };
 
+  const toggleQuestions = (bookingId: string) => {
+    setExpandedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(bookingId)) {
+        newSet.delete(bookingId);
+      } else {
+        newSet.add(bookingId);
+      }
+      return newSet;
+    });
+  };
+
   const filteredBookings = bookings.filter(booking => {
     if (statusFilter === 'all') return true;
     if (statusFilter === 'upcoming') return booking.event_status === 'scheduled' && !isPast(booking.event_time);
@@ -223,12 +236,26 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                             )}
                             {getCustomQuestions(booking).length > 0 && (
                               <div className="mt-2 pt-2 border-t border-border">
-                                <p className="text-xs font-semibold text-muted-foreground mb-1">Custom Questions:</p>
-                                {getCustomQuestions(booking).map((q: { question: string; answer: string }, idx: number) => (
-                                  <div key={idx} className="text-xs text-muted-foreground mb-1">
-                                    <span className="font-medium">{q.question}:</span> {q.answer}
+                                <button
+                                  onClick={() => toggleQuestions(booking.id)}
+                                  className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-1 w-full"
+                                >
+                                  {expandedQuestions.has(booking.id) ? (
+                                    <ChevronUp className="h-3 w-3 text-gray-400" />
+                                  ) : (
+                                    <ChevronDown className="h-3 w-3 text-gray-400" />
+                                  )}
+                                  <span>Custom Questions ({getCustomQuestions(booking).length})</span>
+                                </button>
+                                {expandedQuestions.has(booking.id) && (
+                                  <div className="pl-4">
+                                    {getCustomQuestions(booking).map((q: { question: string; answer: string }, idx: number) => (
+                                      <div key={idx} className="text-xs text-muted-foreground mb-1">
+                                        <span className="font-medium">{q.question}:</span> {q.answer}
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                )}
                               </div>
                             )}
                           </div>
