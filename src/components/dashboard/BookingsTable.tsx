@@ -172,7 +172,7 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
   };
 
   const filteredBookings = bookings.filter(booking => {
-    if (statusFilter === 'all') return true;
+    if (statusFilter === 'all') return booking.event_status !== 'archived';
     if (statusFilter === 'upcoming') return booking.event_status === 'scheduled' && !isPast(booking.event_time);
     if (statusFilter === 'past') return isPast(booking.event_time);
     return booking.event_status === statusFilter;
