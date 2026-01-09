@@ -111,7 +111,7 @@ export const SimplifiedSidebar = ({
               >
                 <div
                   className={cn(
-                    "flex items-center gap-1 rounded-md mb-1",
+                    "flex items-center gap-1 rounded-md mb-1 mx-1",
                     isSelected && "border-2 border-primary"
                   )}
                 >
@@ -119,7 +119,7 @@ export const SimplifiedSidebar = ({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0"
+                      className="h-8 w-8 shrink-0 hover:bg-accent/50"
                       disabled={locked}
                     >
                       <ChevronRight
@@ -133,7 +133,7 @@ export const SimplifiedSidebar = ({
 
                   <Button
                     variant="ghost"
-                    className="flex-1 justify-start gap-2 h-8 px-2"
+                    className="flex-1 justify-start gap-2 h-8 px-2 hover:bg-accent/50"
                     onClick={() => handleWorkspaceClick(workspace)}
                   >
                     <Building2 className="h-4 w-4" />
@@ -144,7 +144,7 @@ export const SimplifiedSidebar = ({
                   {!locked && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 hover:bg-accent/50">
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -178,13 +178,13 @@ export const SimplifiedSidebar = ({
                         <div
                           key={board.id}
                           className={cn(
-                            "flex items-center gap-1 rounded-md",
+                            "flex items-center gap-1 rounded-md mx-1 mb-1",
                             selectedBoardId === board.id && "border-2 border-primary"
                           )}
                         >
                           <Button
                             variant="ghost"
-                            className="flex-1 justify-start gap-2 h-8 px-2"
+                            className="flex-1 justify-start gap-2 h-8 px-2 hover:bg-accent/50"
                             onClick={() => handleBoardClick(board)}
                           >
                             <LayoutGrid className="h-4 w-4" />
@@ -195,7 +195,7 @@ export const SimplifiedSidebar = ({
                           {!boardLocked && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 hover:bg-accent/50">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
