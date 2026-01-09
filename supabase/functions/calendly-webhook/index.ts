@@ -402,21 +402,13 @@ Deno.serve(async (req: Request) => {
     if (ghlApiKey && connection.ghl_location_id) {
       try {
         console.log('Creating GHL contact...');
-        
+
         // Split name into firstName and lastName for GHL API
         const nameParts = (inviteeName || '').trim().split(' ');
         const firstName = nameParts[0] || inviteeName || 'Unknown';
         const lastName = nameParts.slice(1).join(' ') || '';
 
-        // Format custom questions for GHL notes
-        let notes = `Calendly Booking: ${eventName}\nScheduled: ${formattedTime}`;
-        if (customQuestions.length > 0) {
-          notes += '\n\n--- Custom Questions ---';
-          customQuestions.forEach((q: { question: string; answer: string }) => {
-            notes += `\n${q.question}: ${q.answer}`;
-          });
-        }
-
+        // Create the contact first
         const ghlResponse = await fetch('https://services.leadconnectorhq.com/contacts/', {
           method: 'POST',
           headers: {
@@ -437,13 +429,44 @@ Deno.serve(async (req: Request) => {
               { key: 'calendly_event_id', value: calendlyEventId || '' },
               { key: 'calendly_timezone', value: inviteeTimezone || '' }
             ],
-            source: 'Calendly',
-            notes: notes
+            source: 'Calendly'
           })
         });
 
         if (ghlResponse.ok) {
-          console.log('GHL contact created successfully');
+          const ghlData = await ghlResponse.json();
+          const contactId = ghlData.contact?.id;
+          console.log('GHL contact created successfully, ID:', contactId);
+
+          // If we have custom questions, create a note using the Create Note API
+          if (contactId && customQuestions.length > 0) {
+            console.log('Creating note with custom questions...');
+
+            // Format custom questions for note
+            let noteBody = `📅 Calendly Booking: ${eventName}\n⏰ Scheduled: ${formattedTime}\n\n--- Custom Questions ---`;
+            customQuestions.forEach((q: { question: string; answer: string }) => {
+              noteBody += `\n\n❓ ${q.question}\n✅ ${q.answer}`;
+            });
+
+            const noteResponse = await fetch(`https://services.leadconnectorhq.com/contacts/${contactId}/notes/`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${ghlApiKey}`,
+                'Version': '2021-07-28',
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                body: noteBody
+              })
+            });
+
+            if (noteResponse.ok) {
+              console.log('GHL note created successfully');
+            } else {
+              const noteError = await noteResponse.text();
+              console.warn('GHL Create Note API error:', noteError);
+            }
+          }
         } else {
           const ghlError = await ghlResponse.text();
           console.warn('GHL API error:', ghlError);

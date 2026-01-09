@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive, ArchiveRestore, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface Booking {
@@ -33,6 +33,7 @@ interface Booking {
   call_outcome: string | null;
   closer_notes: string | null;
   raw_payload: any;
+  archived: boolean | null;
 }
 
 interface BookingsTableProps {
@@ -172,7 +173,11 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
   };
 
   const filteredBookings = bookings.filter(booking => {
-    if (statusFilter === 'all') return booking.event_status !== 'archived';
+    // Always hide archived bookings unless explicitly showing them
+    if (booking.archived && statusFilter !== 'archived') return false;
+
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'archived') return booking.archived === true;
     if (statusFilter === 'upcoming') return booking.event_status === 'scheduled' && !isPast(booking.event_time);
     if (statusFilter === 'past') return isPast(booking.event_time);
     return booking.event_status === statusFilter;
@@ -378,16 +383,27 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                                 </a>
                               </Button>
                             )}
-                            {booking.event_status !== 'archived' && (
+                            {!booking.archived ? (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 className="h-7 w-7 p-0"
-                                onClick={() => updateBooking(booking.id, { event_status: 'archived' })}
+                                onClick={() => updateBooking(booking.id, { archived: true })}
                                 disabled={isUpdating}
                                 title="Archive"
                               >
                                 <Archive className="h-3 w-3" />
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0"
+                                onClick={() => updateBooking(booking.id, { archived: false })}
+                                disabled={isUpdating}
+                                title="Unarchive"
+                              >
+                                <ArchiveRestore className="h-3 w-3" />
                               </Button>
                             )}
                           </div>
