@@ -138,6 +138,26 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
       // Check if Discord channel changed and needs new webhook
       const discordChanged = formData.discord_channel_id !== connection.discord_channel_id;
 
+      // If clearing Discord (had webhook before, now none), delete the old webhook
+      if (discordChanged && !formData.discord_channel_id && connection.discord_webhook_url) {
+        try {
+          console.log('Deleting old Discord webhook...');
+          const urlParts = connection.discord_webhook_url.split('/');
+          const webhookId = urlParts[urlParts.length - 2];
+          const webhookToken = urlParts[urlParts.length - 1];
+          
+          if (webhookId && webhookToken) {
+            await fetch(`https://discord.com/api/webhooks/${webhookId}/${webhookToken}`, {
+              method: 'DELETE'
+            });
+            console.log('Old Discord webhook deleted');
+          }
+        } catch (err) {
+          console.warn('Failed to delete old webhook:', err);
+          // Continue anyway
+        }
+      }
+
       if (discordChanged && formData.discord_channel_id) {
         // Create new Discord webhook (this function also updates the database with Discord fields)
         const { data: webhookData, error: webhookError } = await supabase.functions.invoke('setup-discord-webhook', {
