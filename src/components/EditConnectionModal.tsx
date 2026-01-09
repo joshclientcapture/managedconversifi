@@ -137,10 +137,9 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
       
       // Check if Discord channel changed and needs new webhook
       const discordChanged = formData.discord_channel_id !== connection.discord_channel_id;
-      let discordWebhookUrl = connection.discord_webhook_url;
-      
+
       if (discordChanged && formData.discord_channel_id) {
-        // Create new Discord webhook
+        // Create new Discord webhook (this function also updates the database with Discord fields)
         const { data: webhookData, error: webhookError } = await supabase.functions.invoke('setup-discord-webhook', {
           body: {
             client_connection_id: connection.id,
@@ -152,26 +151,31 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
         });
 
         if (webhookError) throw webhookError;
-      } else if (!formData.discord_channel_id) {
-        discordWebhookUrl = null;
+      }
+
+      // Prepare update payload - don't include Discord fields if webhook was just created/updated
+      const updatePayload: any = {
+        client_name: formData.client_name,
+        ghl_api_key: formData.ghl_api_key || null,
+        conversifi_webhook_url: formData.conversifi_webhook_url || null,
+        is_active: formData.is_active,
+        slack_channel_id: formData.slack_channel_id || null,
+        slack_channel_name: selectedSlackChannel?.name || null,
+      };
+
+      // Only update Discord fields if we didn't just call setup-discord-webhook
+      if (!discordChanged || !formData.discord_channel_id) {
+        updatePayload.discord_channel_id = formData.discord_channel_id || null;
+        updatePayload.discord_channel_name = selectedDiscordChannel?.name || null;
+        updatePayload.discord_guild_id = selectedDiscordChannel?.guildId || null;
+        updatePayload.discord_guild_name = selectedDiscordChannel?.guildName || null;
+        updatePayload.discord_webhook_url = formData.discord_channel_id ? connection.discord_webhook_url : null;
+        updatePayload.discord_enabled = !!formData.discord_channel_id;
       }
 
       const { error } = await supabase
         .from('client_connections')
-        .update({
-          client_name: formData.client_name,
-          ghl_api_key: formData.ghl_api_key || null,
-          conversifi_webhook_url: formData.conversifi_webhook_url || null,
-          is_active: formData.is_active,
-          slack_channel_id: formData.slack_channel_id || null,
-          slack_channel_name: selectedSlackChannel?.name || null,
-          discord_channel_id: formData.discord_channel_id || null,
-          discord_channel_name: selectedDiscordChannel?.name || null,
-          discord_guild_id: selectedDiscordChannel?.guildId || null,
-          discord_guild_name: selectedDiscordChannel?.guildName || null,
-          discord_webhook_url: discordWebhookUrl,
-          discord_enabled: !!formData.discord_channel_id,
-        })
+        .update(updatePayload)
         .eq('id', connection.id);
 
       if (error) throw error;
