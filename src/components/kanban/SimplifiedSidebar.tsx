@@ -9,11 +9,6 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger
-} from '@/components/ui/collapsible';
-import {
   Building2,
   ChevronRight,
   LayoutGrid,
@@ -76,9 +71,7 @@ export const SimplifiedSidebar = ({
       return;
     }
     onSelectWorkspace(workspace.id);
-    if (!openWorkspaces.includes(workspace.id)) {
-      toggleWorkspace(workspace.id);
-    }
+    toggleWorkspace(workspace.id);
   };
 
   const handleBoardClick = (board: Board) => {
@@ -90,13 +83,13 @@ export const SimplifiedSidebar = ({
   };
 
   return (
-    <div className="w-64 border-r border-border bg-card/50 flex flex-col h-full shrink-0">
+    <div className="w-64 border-r border-border bg-card/50 flex flex-col h-full min-h-0 shrink-0">
       <div className="p-4 border-b border-border shrink-0">
         <h2 className="font-semibold text-lg">Task Board</h2>
       </div>
 
       <ScrollArea className="flex-1 min-h-0">
-        <div className="p-3">
+        <div className="p-3 space-y-1">
           {workspaces.map(workspace => {
             const isOpen = openWorkspaces.includes(workspace.id);
             const isSelected = selectedWorkspaceId === workspace.id;
@@ -104,41 +97,30 @@ export const SimplifiedSidebar = ({
             const locked = isWorkspaceLocked(workspace);
 
             return (
-              <Collapsible
-                key={workspace.id}
-                open={isOpen && !locked}
-                onOpenChange={() => !locked && toggleWorkspace(workspace.id)}
-              >
-              <div
+              <div key={workspace.id}>
+                {/* Workspace row */}
+                <div
                   className={cn(
-                    "flex items-center gap-1 rounded-md mb-1 border-2 border-transparent",
-                    isSelected && "border-primary"
+                    "flex items-center gap-1 rounded-md w-full min-w-0",
+                    isSelected && "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                   )}
                 >
-                  <CollapsibleTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 shrink-0 hover:bg-accent/50"
-                      disabled={locked}
-                    >
+                  <Button
+                    variant="ghost"
+                    className="flex-1 justify-start gap-2 h-9 px-2 hover:bg-accent/50 min-w-0"
+                    onClick={() => handleWorkspaceClick(workspace)}
+                  >
+                    <Building2 className="h-4 w-4 shrink-0" />
+                    <span className="truncate flex-1 text-left">{workspace.name}</span>
+                    {locked && <Lock className="h-3 w-3 shrink-0" />}
+                    {!locked && (
                       <ChevronRight
                         className={cn(
-                          "h-4 w-4 transition-transform",
+                          "h-4 w-4 shrink-0 text-muted-foreground transition-transform",
                           isOpen && "rotate-90"
                         )}
                       />
-                    </Button>
-                  </CollapsibleTrigger>
-
-                  <Button
-                    variant="ghost"
-                    className="flex-1 justify-start gap-2 h-8 px-2 hover:bg-accent/50"
-                    onClick={() => handleWorkspaceClick(workspace)}
-                  >
-                    <Building2 className="h-4 w-4" />
-                    <span className="truncate">{workspace.name}</span>
-                    {locked && <Lock className="h-3 w-3 ml-auto" />}
+                    )}
                   </Button>
 
                   {!locked && (
@@ -169,27 +151,28 @@ export const SimplifiedSidebar = ({
                   )}
                 </div>
 
-                <CollapsibleContent>
-                  <div className="ml-4 pl-2 border-l border-border/50 space-y-1">
+                {/* Boards list (collapsible content) */}
+                {isOpen && !locked && (
+                  <div className="ml-3 pl-3 border-l border-border/50 space-y-1 mt-1">
                     {workspaceBoards.map(board => {
                       const boardLocked = isBoardLocked(board);
 
                       return (
-                      <div
+                        <div
                           key={board.id}
                           className={cn(
-                            "flex items-center gap-1 rounded-md mb-1 border-2 border-transparent",
-                            selectedBoardId === board.id && "border-primary"
+                            "flex items-center gap-1 rounded-md w-full min-w-0",
+                            selectedBoardId === board.id && "shadow-[inset_0_0_0_2px_hsl(var(--primary))]"
                           )}
                         >
                           <Button
                             variant="ghost"
-                            className="flex-1 justify-start gap-2 h-8 px-2 hover:bg-accent/50"
+                            className="flex-1 justify-start gap-2 h-8 px-2 hover:bg-accent/50 min-w-0"
                             onClick={() => handleBoardClick(board)}
                           >
-                            <LayoutGrid className="h-4 w-4" />
-                            <span className="truncate">{board.name}</span>
-                            {boardLocked && <Lock className="h-3 w-3 ml-auto" />}
+                            <LayoutGrid className="h-4 w-4 shrink-0" />
+                            <span className="truncate flex-1 text-left">{board.name}</span>
+                            {boardLocked && <Lock className="h-3 w-3 shrink-0" />}
                           </Button>
 
                           {!boardLocked && (
@@ -224,8 +207,8 @@ export const SimplifiedSidebar = ({
                       </p>
                     )}
                   </div>
-                </CollapsibleContent>
-              </Collapsible>
+                )}
+              </div>
             );
           })}
 
@@ -237,7 +220,7 @@ export const SimplifiedSidebar = ({
         </div>
       </ScrollArea>
 
-      <div className="p-3 border-t border-border mt-auto shrink-0">
+      <div className="p-3 border-t border-border shrink-0">
         <Button
           variant="outline"
           className="w-full justify-start gap-2"

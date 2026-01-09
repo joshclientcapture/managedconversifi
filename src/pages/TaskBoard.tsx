@@ -70,7 +70,7 @@ const TaskBoard = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="h-[100dvh] flex flex-col bg-background">
       <Header />
       
       <div className="flex-1 flex overflow-hidden min-h-0">
