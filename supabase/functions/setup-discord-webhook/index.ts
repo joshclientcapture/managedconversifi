@@ -127,10 +127,6 @@ Deno.serve(async (req: Request) => {
     console.log('Discord webhook created successfully:', webhookData.id);
 
     // Update the client connection with Discord details
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     const { error: updateError } = await supabase
       .from('client_connections')
       .update({
