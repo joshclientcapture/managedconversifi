@@ -90,7 +90,7 @@ export const SimplifiedSidebar = ({
   };
 
   return (
-    <div className="w-64 border-r border-border bg-card/50 flex flex-col h-full overflow-hidden">
+    <div className="w-64 border-r border-border bg-card/50 flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
       <div className="p-4 border-b border-border">
         <h2 className="font-semibold text-lg">Task Board</h2>
       </div>
