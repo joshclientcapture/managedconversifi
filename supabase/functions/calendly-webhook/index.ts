@@ -480,30 +480,27 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 2. Send Slack notification with clean, client-friendly formatting
+    // 2. Send Slack notification with same content as Discord
     if (slackToken && connection.slack_channel_id) {
       try {
         console.log('Sending Slack notification...');
         
+        // Build client portal URL with access code
+        const clientPortalUrl = `https://client.conversifi.io?code=${connection.access_token || ''}`;
+        
         const headerText = isRescheduled 
           ? `🔄 *Booking Rescheduled*\n\n*${inviteeName}* has rescheduled their appointment.`
-          : `🎯 *New Booking*\n\n*${inviteeName}* has booked a ${eventName}.`;
+          : `✅ *New Booking*\n\n*${inviteeName}* has booked a ${eventName}.`;
 
-        // Build action buttons if URLs exist
+        // Build action buttons
         const actionElements: any[] = [];
-        if (rescheduleUrl) {
+        
+        // Add client portal button as primary action
+        if (connection.access_token) {
           actionElements.push({
             type: 'button',
-            text: { type: 'plain_text', text: 'Reschedule', emoji: true },
-            url: rescheduleUrl
-          });
-        }
-        if (cancelUrl) {
-          actionElements.push({
-            type: 'button',
-            text: { type: 'plain_text', text: 'Cancel', emoji: true },
-            url: cancelUrl,
-            style: 'danger'
+            text: { type: 'plain_text', text: 'View Booking', emoji: true },
+            url: clientPortalUrl
           });
         }
 
@@ -517,12 +514,38 @@ Deno.serve(async (req: Request) => {
             type: 'section',
             fields: [
               { type: 'mrkdwn', text: `📅 *When*\n${formattedTime}` },
-              { type: 'mrkdwn', text: `📍 *Location*\n${locationDisplay}` },
               { type: 'mrkdwn', text: `📧 *Email*\n${inviteeEmail || 'Not provided'}` },
-              { type: 'mrkdwn', text: `📱 *Phone*\n${inviteePhone || 'Not provided'}` }
+              { type: 'mrkdwn', text: `📱 *Phone*\n${inviteePhone || 'Not provided'}` },
+              { type: 'mrkdwn', text: `🔑 *Access Code*\n${connection.access_token || 'N/A'}` }
             ]
           }
         ];
+
+        // Add meeting link if available
+        if (locationLink) {
+          blocks.push({
+            type: 'section',
+            text: { type: 'mrkdwn', text: `🔗 *Meeting Link*\n<${locationLink}|Join ${locationDisplay}>` }
+          });
+        }
+
+        // Add custom questions as fields (matching Discord)
+        if (customQuestions.length > 0) {
+          customQuestions.forEach((q: { question: string; answer: string }) => {
+            blocks.push({
+              type: 'section',
+              text: { type: 'mrkdwn', text: `❓ *${q.question}*\n${q.answer || 'Not provided'}` }
+            });
+          });
+        }
+
+        // Add client portal link
+        if (connection.access_token) {
+          blocks.push({
+            type: 'section',
+            text: { type: 'mrkdwn', text: `🔗 View and manage this booking at: ${clientPortalUrl}` }
+          });
+        }
 
         // Add action buttons if any
         if (actionElements.length > 0) {
@@ -536,7 +559,7 @@ Deno.serve(async (req: Request) => {
         blocks.push({
           type: 'context',
           elements: [
-            { type: 'mrkdwn', text: `🏢 ${connection.client_name} • ${eventName}` }
+            { type: 'mrkdwn', text: `${connection.client_name}` }
           ]
         });
 
@@ -565,7 +588,7 @@ Deno.serve(async (req: Request) => {
       try {
         console.log('Sending Discord notification...');
 
-        const title = isRescheduled ? '🔄 Booking Rescheduled' : '🎯 New Booking';
+        const title = isRescheduled ? '🔄 Booking Rescheduled' : '✅ New Booking';
         const description = isRescheduled
           ? `**${inviteeName}** has rescheduled their appointment.`
           : `**${inviteeName}** has booked a ${eventName}.`;
