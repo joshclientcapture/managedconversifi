@@ -153,7 +153,7 @@ export const SimplifiedSidebar = ({
 
                 {/* Boards list (collapsible content) */}
                 {isOpen && !locked && (
-                  <div className="pl-6 space-y-1 mt-1">
+                  <div className="space-y-1 mt-1">
                     {workspaceBoards.map(board => {
                       const boardLocked = isBoardLocked(board);
 
