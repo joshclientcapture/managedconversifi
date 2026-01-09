@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
       console.warn('Failed to fetch avatar image, webhook will be created without avatar:', avatarError);
     }
 
-    // Create a webhook in the selected channel
+    // Create a webhook in the selected channel with avatar
     const webhookPayload: any = {
       name: 'Conversifi Notifications',
     };
@@ -159,6 +159,8 @@ Deno.serve(async (req: Request) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          username: 'Conversifi Notifications',
+          avatar_url: 'https://client.conversifi.io/discordlogo.png',
           embeds: [{
             title: '✅ Discord Connected',
             description: 'Booking notifications will now be sent to this channel.',
