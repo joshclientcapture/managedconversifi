@@ -117,7 +117,12 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
     }
   };
 
-  const getStatusBadge = (status: string | null) => {
+  const getStatusBadge = (status: string | null, eventTime: string | null) => {
+    // Show "Awaiting Feedback" for past scheduled meetings
+    if (status === 'scheduled' && isPast(eventTime)) {
+      return <Badge className="bg-orange-500/10 text-orange-600 border-orange-500/20">Awaiting Feedback</Badge>;
+    }
+    
     switch (status) {
       case 'scheduled':
         return <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20">Scheduled</Badge>;
@@ -296,7 +301,7 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                         <TableCell className="text-sm whitespace-nowrap">
                           {formatTime(booking.event_time)}
                         </TableCell>
-                        <TableCell>{getStatusBadge(booking.event_status)}</TableCell>
+                        <TableCell>{getStatusBadge(booking.event_status, booking.event_time)}</TableCell>
                         <TableCell>
                           {past && booking.event_status !== 'canceled' ? (
                             <div className="flex gap-1">
