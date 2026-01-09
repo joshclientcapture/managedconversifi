@@ -67,6 +67,38 @@ Deno.serve(async (req: Request) => {
       console.warn('Error fetching bookings:', bookingsError);
     }
 
+    // Auto-update past scheduled bookings to completed
+    if (bookings && bookings.length > 0) {
+      const now = new Date();
+      const pastScheduledBookings = bookings.filter((booking: any) => {
+        if (booking.event_status !== 'scheduled') return false;
+        if (!booking.event_time) return false;
+        const eventTime = new Date(booking.event_time);
+        return eventTime < now;
+      });
+
+      if (pastScheduledBookings.length > 0) {
+        console.log(`Auto-updating ${pastScheduledBookings.length} past scheduled bookings to completed`);
+        const bookingIds = pastScheduledBookings.map((b: any) => b.id);
+
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({ event_status: 'completed' })
+          .in('id', bookingIds);
+
+        if (!updateError) {
+          // Update local bookings array to reflect changes
+          bookings.forEach((booking: any) => {
+            if (bookingIds.includes(booking.id)) {
+              booking.event_status = 'completed';
+            }
+          });
+        } else {
+          console.warn('Error auto-updating past bookings:', updateError);
+        }
+      }
+    }
+
     // Get latest stats for summary
     const latestStats = campaignStats?.[0] || null;
     
