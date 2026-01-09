@@ -69,17 +69,36 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Creating Discord webhook for channel ${channel_id} in guild ${guild_id}...`);
 
-    // Create a webhook in the selected channel
-    // Note: We don't set a default avatar here because it's more reliable to use avatar_url when sending messages
+    // Fetch the Conversifi logo and convert to base64 for Discord avatar
+    let avatarDataUri = null;
+    try {
+      const logoResponse = await fetch('https://client.conversifi.io/discordlogo.png');
+      if (logoResponse.ok) {
+        const logoBuffer = await logoResponse.arrayBuffer();
+        const logoBase64 = btoa(String.fromCharCode(...new Uint8Array(logoBuffer)));
+        avatarDataUri = `data:image/png;base64,${logoBase64}`;
+        console.log('Conversifi logo fetched and converted to base64');
+      }
+    } catch (avatarError) {
+      console.warn('Failed to fetch avatar image, webhook will be created without avatar:', avatarError);
+    }
+
+    // Create a webhook in the selected channel with avatar
+    const webhookPayload: any = {
+      name: 'Conversifi Notifications',
+    };
+
+    if (avatarDataUri) {
+      webhookPayload.avatar = avatarDataUri;
+    }
+
     const webhookResponse = await fetch(`https://discord.com/api/v10/channels/${channel_id}/webhooks`, {
       method: 'POST',
       headers: {
         'Authorization': `Bot ${botToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: 'Conversifi Notifications',
-      }),
+      body: JSON.stringify(webhookPayload),
     });
 
     if (!webhookResponse.ok) {
