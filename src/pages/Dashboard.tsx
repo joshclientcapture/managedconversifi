@@ -300,6 +300,12 @@ const Dashboard = () => {
         </Tabs>
         </div>
       </main>
+      <a 
+        href="/admin" 
+        className="fixed bottom-2 right-2 text-[10px] text-muted-foreground/40 hover:text-muted-foreground/60 transition-colors"
+      >
+        Admin
+      </a>
     </div>
   );
 };
