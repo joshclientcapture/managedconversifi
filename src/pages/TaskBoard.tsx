@@ -73,7 +73,7 @@ const TaskBoard = () => {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden min-h-0">
         <SimplifiedSidebar
           workspaces={kanban.workspaces}
           boards={kanban.boards}
