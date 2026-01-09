@@ -40,8 +40,20 @@ export const KanbanBoard = ({
   const sortedColumns = [...columns].sort((a, b) => a.position - b.position);
 
   return (
-    <div className="flex-1 overflow-hidden">
-      <div className="h-full overflow-x-auto">
+    <div className="flex-1 overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-border">
+        <h2 className="font-semibold text-lg">{board.name}</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onAddColumn}
+          className="gap-1"
+        >
+          <Plus className="h-4 w-4" />
+          Add Column
+        </Button>
+      </div>
+      <div className="flex-1 overflow-x-auto">
         <div className="flex gap-4 p-6 h-full min-w-max">
           {sortedColumns.map(column => (
             <KanbanColumn
@@ -56,16 +68,11 @@ export const KanbanBoard = ({
             />
           ))}
 
-          <div className="w-72 min-w-[18rem] flex-shrink-0">
-            <Button
-              variant="outline"
-              onClick={onAddColumn}
-              className="w-full h-12 border-dashed border-2 text-muted-foreground hover:text-foreground hover:border-primary/50"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Column
-            </Button>
-          </div>
+          {sortedColumns.length === 0 && (
+            <div className="flex items-center justify-center w-full text-muted-foreground">
+              <p className="text-sm">No columns yet. Click "Add Column" to get started.</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
