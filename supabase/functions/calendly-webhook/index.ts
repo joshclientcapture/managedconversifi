@@ -365,7 +365,11 @@ Deno.serve(async (req: Request) => {
           const discordResponse = await fetch(connection.discord_webhook_url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ embeds: [embed] })
+            body: JSON.stringify({
+              username: 'Conversifi Notifications',
+              avatar_url: 'https://client.conversifi.io/discordlogo.png',
+              embeds: [embed]
+            })
           });
           console.log('Discord cancellation notification:', discordResponse.ok ? 'sent' : 'failed');
         } catch (discordError) {
@@ -632,7 +636,11 @@ Deno.serve(async (req: Request) => {
           });
         }
 
-        const discordPayload: any = { embeds: [embed] };
+        const discordPayload: any = {
+          username: 'Conversifi Notifications',
+          avatar_url: 'https://client.conversifi.io/discordlogo.png',
+          embeds: [embed]
+        };
         if (components.length > 0) {
           discordPayload.components = components;
         }
