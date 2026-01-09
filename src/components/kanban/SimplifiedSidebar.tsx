@@ -90,13 +90,13 @@ export const SimplifiedSidebar = ({
   };
 
   return (
-    <div className="w-64 border-r border-border bg-card/50 flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
-      <div className="p-4 border-b border-border">
+    <div className="w-64 border-r border-border bg-card/50 flex flex-col h-full shrink-0">
+      <div className="p-4 border-b border-border shrink-0">
         <h2 className="font-semibold text-lg">Task Board</h2>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="px-3 py-2">
+      <ScrollArea className="flex-1 min-h-0">
+        <div className="p-3">
           {workspaces.map(workspace => {
             const isOpen = openWorkspaces.includes(workspace.id);
             const isSelected = selectedWorkspaceId === workspace.id;
@@ -109,10 +109,10 @@ export const SimplifiedSidebar = ({
                 open={isOpen && !locked}
                 onOpenChange={() => !locked && toggleWorkspace(workspace.id)}
               >
-                <div
+              <div
                   className={cn(
-                    "flex items-center gap-1 rounded-md mb-1 mx-1",
-                    isSelected && "ring-2 ring-primary"
+                    "flex items-center gap-1 rounded-md mb-1 border-2 border-transparent",
+                    isSelected && "border-primary"
                   )}
                 >
                   <CollapsibleTrigger asChild>
@@ -175,11 +175,11 @@ export const SimplifiedSidebar = ({
                       const boardLocked = isBoardLocked(board);
 
                       return (
-                        <div
+                      <div
                           key={board.id}
                           className={cn(
-                            "flex items-center gap-1 rounded-md mb-1 mr-1",
-                            selectedBoardId === board.id && "ring-2 ring-primary"
+                            "flex items-center gap-1 rounded-md mb-1 border-2 border-transparent",
+                            selectedBoardId === board.id && "border-primary"
                           )}
                         >
                           <Button
@@ -237,7 +237,7 @@ export const SimplifiedSidebar = ({
         </div>
       </ScrollArea>
 
-      <div className="p-2 border-t border-border">
+      <div className="p-3 border-t border-border mt-auto shrink-0">
         <Button
           variant="outline"
           className="w-full justify-start gap-2"
