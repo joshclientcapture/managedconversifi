@@ -11,12 +11,12 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { 
+    const {
       client_connection_id,
-      channel_id, 
+      channel_id,
       channel_name,
       guild_id,
-      guild_name 
+      guild_name
     } = await req.json();
 
     if (!client_connection_id || !channel_id || !guild_id) {
@@ -27,7 +27,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
-    
+
     if (!botToken) {
       return new Response(
         JSON.stringify({ error: 'Discord bot not configured' }),
@@ -35,19 +35,70 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get the existing webhook URL to delete the old webhook
+    const { data: existingConnection } = await supabase
+      .from('client_connections')
+      .select('discord_webhook_url')
+      .eq('id', client_connection_id)
+      .single();
+
+    // Delete old webhook if it exists
+    if (existingConnection?.discord_webhook_url) {
+      try {
+        console.log('Deleting old Discord webhook...');
+        // Extract webhook ID and token from URL: https://discord.com/api/webhooks/{id}/{token}
+        const urlParts = existingConnection.discord_webhook_url.split('/');
+        const webhookId = urlParts[urlParts.length - 2];
+        const webhookToken = urlParts[urlParts.length - 1];
+
+        if (webhookId && webhookToken) {
+          await fetch(`https://discord.com/api/v10/webhooks/${webhookId}/${webhookToken}`, {
+            method: 'DELETE'
+          });
+          console.log('Old webhook deleted successfully');
+        }
+      } catch (deleteError) {
+        console.warn('Failed to delete old webhook:', deleteError);
+        // Continue anyway - the old webhook will just remain orphaned
+      }
+    }
+
     console.log(`Creating Discord webhook for channel ${channel_id} in guild ${guild_id}...`);
 
+    // Fetch the Conversifi logo and convert to base64 for Discord avatar
+    let avatarDataUri = null;
+    try {
+      const logoResponse = await fetch('https://client.conversifi.io/discordlogo.png');
+      if (logoResponse.ok) {
+        const logoBuffer = await logoResponse.arrayBuffer();
+        const logoBase64 = btoa(String.fromCharCode(...new Uint8Array(logoBuffer)));
+        avatarDataUri = `data:image/png;base64,${logoBase64}`;
+        console.log('Conversifi logo fetched and converted to base64');
+      }
+    } catch (avatarError) {
+      console.warn('Failed to fetch avatar image, webhook will be created without avatar:', avatarError);
+    }
+
     // Create a webhook in the selected channel
+    const webhookPayload: any = {
+      name: 'Conversifi Notifications',
+    };
+
+    if (avatarDataUri) {
+      webhookPayload.avatar = avatarDataUri;
+    }
+
     const webhookResponse = await fetch(`https://discord.com/api/v10/channels/${channel_id}/webhooks`, {
       method: 'POST',
       headers: {
         'Authorization': `Bot ${botToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: 'Conversifi Notifications',
-        avatar: 'https://client.conversifi.io/discordlogo.png',
-      }),
+      body: JSON.stringify(webhookPayload),
     });
 
     if (!webhookResponse.ok) {
