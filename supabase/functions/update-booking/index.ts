@@ -24,21 +24,43 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Verify booking belongs to this access token
+    // Resolve client connection from access token
+    const { data: connection, error: connError } = await supabase
+      .from('client_connections')
+      .select('id')
+      .eq('access_token', access_token)
+      .single();
+
+    if (connError || !connection) {
+      console.error('Invalid access token:', connError);
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid access token' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify booking belongs to this client connection
     const { data: booking, error: fetchError } = await supabase
       .from('bookings')
-      .select('id, access_token')
+      .select('id, access_token, client_connection_id')
       .eq('id', booking_id)
       .single();
 
     if (fetchError || !booking) {
+      console.error('Booking fetch error:', fetchError);
       return new Response(
         JSON.stringify({ success: false, error: 'Booking not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    if (booking.access_token !== access_token) {
+    const authorized = booking.client_connection_id === connection.id || booking.access_token === access_token;
+    if (!authorized) {
+      console.error('Unauthorized booking update', {
+        booking_id,
+        connection_id: connection.id,
+        booking_client_connection_id: booking.client_connection_id,
+      });
       return new Response(
         JSON.stringify({ success: false, error: 'Unauthorized' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
