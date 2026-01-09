@@ -17,6 +17,7 @@ export type Database = {
       bookings: {
         Row: {
           access_token: string | null
+          archived: boolean | null
           calendly_event_id: string | null
           calendly_event_uri: string | null
           calendly_invitee_uri: string | null
@@ -40,6 +41,7 @@ export type Database = {
         }
         Insert: {
           access_token?: string | null
+          archived?: boolean | null
           calendly_event_id?: string | null
           calendly_event_uri?: string | null
           calendly_invitee_uri?: string | null
@@ -63,6 +65,7 @@ export type Database = {
         }
         Update: {
           access_token?: string | null
+          archived?: boolean | null
           calendly_event_id?: string | null
           calendly_event_uri?: string | null
           calendly_invitee_uri?: string | null
