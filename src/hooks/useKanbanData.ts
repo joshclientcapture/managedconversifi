@@ -65,11 +65,10 @@ export const useKanbanData = () => {
   }, []);
 
   // Fetch boards for selected workspace
-  const fetchBoards = useCallback(async (workspaceId: string) => {
+  const fetchBoards = useCallback(async () => {
     const { data, error } = await (supabase as any)
       .from('kanban_boards')
       .select('*')
-      .eq('workspace_id', workspaceId)
       .order('position', { ascending: true });
 
     if (error) {
@@ -125,19 +124,29 @@ export const useKanbanData = () => {
     const init = async () => {
       setLoading(true);
       await fetchWorkspaces();
+      await fetchBoards();
       setLoading(false);
     };
     init();
-  }, [fetchWorkspaces]);
+  }, [fetchWorkspaces, fetchBoards]);
 
-  // Load boards when workspace changes
+  // Realtime subscription for boards
   useEffect(() => {
-    if (selectedWorkspaceId) {
-      fetchBoards(selectedWorkspaceId);
-    } else {
-      setBoards([]);
-    }
-  }, [selectedWorkspaceId, fetchBoards]);
+    const boardsChannel = supabase
+      .channel('kanban-boards-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'kanban_boards'
+      }, () => {
+        fetchBoards();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(boardsChannel);
+    };
+  }, [fetchBoards]);
 
   // Load columns and cards when board changes
   useEffect(() => {
@@ -470,7 +479,7 @@ export const useKanbanData = () => {
     deleteCard,
     moveCard,
     reorderColumns,
-    refetchBoards: () => selectedWorkspaceId && fetchBoards(selectedWorkspaceId),
+    refetchBoards: fetchBoards,
     refetchColumns: () => selectedBoardId && fetchColumns(selectedBoardId),
     refetchCards: () => selectedBoardId && fetchCards(selectedBoardId)
   };
