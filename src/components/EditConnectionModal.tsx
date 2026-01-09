@@ -138,10 +138,10 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
       // Check if Discord channel changed and needs new webhook
       const discordChanged = formData.discord_channel_id !== connection.discord_channel_id;
 
-      // If clearing Discord (had webhook before, now none), delete the old webhook
-      if (discordChanged && !formData.discord_channel_id && connection.discord_webhook_url) {
+      // If Discord is being cleared (switching to Slack or clearing), delete the old webhook
+      if (!formData.discord_channel_id && connection.discord_webhook_url) {
         try {
-          console.log('Deleting old Discord webhook...');
+          console.log('Deleting Discord webhook (switching to Slack or clearing)...');
           const urlParts = connection.discord_webhook_url.split('/');
           const webhookId = urlParts[urlParts.length - 2];
           const webhookToken = urlParts[urlParts.length - 1];
@@ -150,11 +150,10 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
             await fetch(`https://discord.com/api/webhooks/${webhookId}/${webhookToken}`, {
               method: 'DELETE'
             });
-            console.log('Old Discord webhook deleted');
+            console.log('Discord webhook deleted');
           }
         } catch (err) {
-          console.warn('Failed to delete old webhook:', err);
-          // Continue anyway
+          console.warn('Failed to delete Discord webhook:', err);
         }
       }
 
@@ -290,7 +289,11 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
               </div>
               <Select
                 value={formData.slack_channel_id || "__NONE__"}
-                onValueChange={(value) => setFormData({ ...formData, slack_channel_id: value === "__NONE__" ? "" : value })}
+                onValueChange={(value) => setFormData({ 
+                  ...formData, 
+                  slack_channel_id: value === "__NONE__" ? "" : value,
+                  discord_channel_id: value === "__NONE__" ? formData.discord_channel_id : "" // Clear Discord when Slack is selected
+                })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={loadingSlack ? "Loading..." : "Select Slack channel"} />
@@ -341,7 +344,11 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
               </div>
               <Select
                 value={formData.discord_channel_id || "__NONE__"}
-                onValueChange={(value) => setFormData({ ...formData, discord_channel_id: value === "__NONE__" ? "" : value })}
+                onValueChange={(value) => setFormData({ 
+                  ...formData, 
+                  discord_channel_id: value === "__NONE__" ? "" : value,
+                  slack_channel_id: value === "__NONE__" ? formData.slack_channel_id : "" // Clear Slack when Discord is selected
+                })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder={loadingDiscord ? "Loading..." : "Select Discord channel"} />
