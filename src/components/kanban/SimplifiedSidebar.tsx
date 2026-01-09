@@ -112,7 +112,7 @@ export const SimplifiedSidebar = ({
                 <div
                   className={cn(
                     "flex items-center gap-1 rounded-md mb-1",
-                    isSelected && "bg-accent"
+                    isSelected && "border-2 border-primary"
                   )}
                 >
                   <CollapsibleTrigger asChild>
@@ -179,7 +179,7 @@ export const SimplifiedSidebar = ({
                           key={board.id}
                           className={cn(
                             "flex items-center gap-1 rounded-md",
-                            selectedBoardId === board.id && "bg-accent"
+                            selectedBoardId === board.id && "border-2 border-primary"
                           )}
                         >
                           <Button
