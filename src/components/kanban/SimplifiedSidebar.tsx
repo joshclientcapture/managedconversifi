@@ -96,7 +96,7 @@ export const SimplifiedSidebar = ({
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-2">
+        <div className="px-3 py-2">
           {workspaces.map(workspace => {
             const isOpen = openWorkspaces.includes(workspace.id);
             const isSelected = selectedWorkspaceId === workspace.id;
@@ -111,7 +111,7 @@ export const SimplifiedSidebar = ({
               >
                 <div
                   className={cn(
-                    "flex items-center gap-1 rounded-md mb-1 mx-1",
+                    "flex items-center gap-1 rounded-md mb-1",
                     isSelected && "border-2 border-primary"
                   )}
                 >
@@ -170,7 +170,7 @@ export const SimplifiedSidebar = ({
                 </div>
 
                 <CollapsibleContent>
-                  <div className="ml-6 pl-2 border-l border-border/50 space-y-1">
+                  <div className="ml-4 pl-2 border-l border-border/50 space-y-1">
                     {workspaceBoards.map(board => {
                       const boardLocked = isBoardLocked(board);
 
@@ -178,7 +178,7 @@ export const SimplifiedSidebar = ({
                         <div
                           key={board.id}
                           className={cn(
-                            "flex items-center gap-1 rounded-md mx-1 mb-1",
+                            "flex items-center gap-1 rounded-md mb-1",
                             selectedBoardId === board.id && "border-2 border-primary"
                           )}
                         >
