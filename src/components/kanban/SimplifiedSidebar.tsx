@@ -153,7 +153,7 @@ export const SimplifiedSidebar = ({
 
                 {/* Boards list (collapsible content) */}
                 {isOpen && !locked && (
-                  <div className="ml-3 pl-3 border-l border-border/50 space-y-1 mt-1">
+                  <div className="pl-6 space-y-1 mt-1">
                     {workspaceBoards.map(board => {
                       const boardLocked = isBoardLocked(board);
 
@@ -167,11 +167,11 @@ export const SimplifiedSidebar = ({
                         >
                           <Button
                             variant="ghost"
-                            className="flex-1 justify-start gap-2 h-8 px-2 hover:bg-accent/50 min-w-0"
+                            className="flex-1 justify-start gap-2 h-7 px-2 hover:bg-accent/50 min-w-0 text-sm"
                             onClick={() => handleBoardClick(board)}
                           >
-                            <LayoutGrid className="h-4 w-4 shrink-0" />
-                            <span className="truncate flex-1 text-left">{board.name}</span>
+                            <LayoutGrid className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate flex-1 text-left text-[13px]">{board.name}</span>
                             {boardLocked && <Lock className="h-3 w-3 shrink-0" />}
                           </Button>
 
