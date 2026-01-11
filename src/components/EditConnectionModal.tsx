@@ -19,13 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, RefreshCw, Hash, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, RefreshCw, Hash, CheckCircle2, AlertCircle, Calendar, X, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 interface ClientConnection {
   id: string;
   client_name: string;
   ghl_api_key: string | null;
+  ghl_location_id: string | null;
   conversifi_webhook_url: string | null;
   is_active: boolean;
   access_token: string | null;
@@ -37,6 +38,9 @@ interface ClientConnection {
   discord_guild_name: string | null;
   discord_webhook_url: string | null;
   discord_enabled: boolean | null;
+  calendly_token: string | null;
+  calendly_user_uri: string | null;
+  watched_event_types: any; // JSON type from database
 }
 
 interface SlackChannel {
@@ -51,11 +55,20 @@ interface DiscordChannel {
   guildName: string;
 }
 
+interface CalendlyEventType {
+  uri: string;
+  name: string;
+  duration: number;
+  active: boolean;
+}
+
 interface EditConnectionModalProps {
   connection: ClientConnection | null;
   onClose: () => void;
   onSave: () => void;
 }
+
+type ValidationStatus = "idle" | "validating" | "valid" | "error";
 
 const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModalProps) => {
   const [saving, setSaving] = useState(false);
@@ -63,6 +76,19 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
   const [discordChannels, setDiscordChannels] = useState<DiscordChannel[]>([]);
   const [loadingSlack, setLoadingSlack] = useState(false);
   const [loadingDiscord, setLoadingDiscord] = useState(false);
+  
+  // Validation states
+  const [ghlValidation, setGhlValidation] = useState<ValidationStatus>("idle");
+  const [ghlError, setGhlError] = useState<string | null>(null);
+  const [conversifiValidation, setConversifiValidation] = useState<ValidationStatus>("idle");
+  const [conversifiError, setConversifiError] = useState<string | null>(null);
+  
+  // Calendly event types
+  const [eventTypes, setEventTypes] = useState<CalendlyEventType[]>([]);
+  const [loadingEventTypes, setLoadingEventTypes] = useState(false);
+  const [selectedEventTypes, setSelectedEventTypes] = useState<string[]>([]);
+  
+  const [showGhlKey, setShowGhlKey] = useState(false);
   
   const [formData, setFormData] = useState({
     client_name: '',
@@ -84,6 +110,21 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
         slack_channel_id: connection.slack_channel_id || '',
         discord_channel_id: connection.discord_channel_id || '',
       });
+      
+      // Set initial selected event types from connection
+      if (connection.watched_event_types && Array.isArray(connection.watched_event_types)) {
+        setSelectedEventTypes(connection.watched_event_types);
+      } else {
+        setSelectedEventTypes([]);
+      }
+      
+      // Set initial validation states based on existing data
+      if (connection.ghl_api_key) {
+        setGhlValidation("valid");
+      }
+      if (connection.conversifi_webhook_url) {
+        setConversifiValidation("valid");
+      }
     }
   }, [connection]);
 
@@ -113,12 +154,125 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
     }
   }, []);
 
+  const fetchEventTypes = useCallback(async () => {
+    if (!connection?.calendly_token || !connection?.calendly_user_uri) return;
+    
+    setLoadingEventTypes(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-calendly-event-types', {
+        body: { 
+          calendly_token: connection.calendly_token, 
+          user_uri: connection.calendly_user_uri 
+        }
+      });
+      
+      if (error) throw error;
+      setEventTypes(data?.eventTypes || []);
+    } catch (error) {
+      console.error('Error fetching event types:', error);
+    } finally {
+      setLoadingEventTypes(false);
+    }
+  }, [connection?.calendly_token, connection?.calendly_user_uri]);
+
   useEffect(() => {
     if (connection) {
       fetchSlackChannels();
       fetchDiscordChannels();
+      fetchEventTypes();
     }
-  }, [connection, fetchSlackChannels, fetchDiscordChannels]);
+  }, [connection, fetchSlackChannels, fetchDiscordChannels, fetchEventTypes]);
+
+  // Validate GHL API key
+  const validateGhlApiKey = async (apiKey: string) => {
+    if (!apiKey || apiKey.length < 10) {
+      setGhlValidation("idle");
+      setGhlError(null);
+      return;
+    }
+
+    if (!connection?.ghl_location_id) {
+      setGhlError('No GHL location configured');
+      setGhlValidation("error");
+      return;
+    }
+
+    setGhlValidation("validating");
+    setGhlError(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-ghl-api-key', {
+        body: { api_key: apiKey, location_id: connection.ghl_location_id }
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Invalid API key');
+      }
+
+      setGhlValidation("valid");
+    } catch (error) {
+      console.error('GHL API key validation error:', error);
+      setGhlError(error instanceof Error ? error.message : 'Failed to validate API key');
+      setGhlValidation("error");
+    }
+  };
+
+  // Validate Conversifi URL
+  const validateConversifiUrl = async (url: string) => {
+    if (!url || url.length < 10) {
+      setConversifiValidation("idle");
+      setConversifiError(null);
+      return;
+    }
+
+    // Basic URL validation
+    try {
+      new URL(url);
+    } catch {
+      setConversifiError('Invalid URL format');
+      setConversifiValidation("error");
+      return;
+    }
+
+    setConversifiValidation("validating");
+    setConversifiError(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-conversifi', {
+        body: { webhook_url: url }
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Failed to validate URL');
+      }
+
+      setConversifiValidation("valid");
+    } catch (error) {
+      console.error('Conversifi validation error:', error);
+      setConversifiError(error instanceof Error ? error.message : 'Failed to validate Conversifi URL');
+      setConversifiValidation("error");
+    }
+  };
+
+  const toggleEventType = (uri: string) => {
+    setSelectedEventTypes(prev => 
+      prev.includes(uri) 
+        ? prev.filter(u => u !== uri)
+        : [...prev, uri]
+    );
+  };
+
+  const selectAllEventTypes = () => {
+    setSelectedEventTypes(eventTypes.map(et => et.uri));
+  };
+
+  const clearEventTypes = () => {
+    setSelectedEventTypes([]);
+  };
 
   const handleSave = async () => {
     if (!connection) return;
@@ -180,6 +334,7 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
         is_active: formData.is_active,
         slack_channel_id: formData.slack_channel_id || null,
         slack_channel_name: selectedSlackChannel?.name || null,
+        watched_event_types: selectedEventTypes.length > 0 ? selectedEventTypes : null,
       };
 
       // Only update Discord fields if we didn't just call setup-discord-webhook
@@ -214,6 +369,19 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
 
   const hasNotificationChannel = formData.slack_channel_id || formData.discord_channel_id;
 
+  const getValidationIcon = (status: ValidationStatus) => {
+    switch (status) {
+      case "validating":
+        return <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />;
+      case "valid":
+        return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
+      case "error":
+        return <AlertCircle className="h-3.5 w-3.5 text-destructive" />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <Dialog open={!!connection} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -242,24 +410,148 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
           </div>
 
           <div className="space-y-2">
-            <Label>GHL API Key</Label>
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-2">
+                GHL API Key
+                {getValidationIcon(ghlValidation)}
+              </Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2"
+                onClick={() => setShowGhlKey(!showGhlKey)}
+              >
+                {showGhlKey ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+              </Button>
+            </div>
             <Input
-              type="password"
+              type={showGhlKey ? "text" : "password"}
               placeholder="Enter GHL API Key"
               value={formData.ghl_api_key}
               onChange={(e) => setFormData({ ...formData, ghl_api_key: e.target.value })}
+              onBlur={(e) => validateGhlApiKey(e.target.value)}
             />
+            {ghlValidation === "valid" && (
+              <p className="text-xs text-success flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                API key validated successfully
+              </p>
+            )}
+            {ghlError && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {ghlError}
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">Required for creating contacts in GHL</p>
           </div>
 
           <div className="space-y-2">
-            <Label>Conversifi Webhook URL</Label>
+            <Label className="flex items-center gap-2">
+              Conversifi Webhook URL
+              {getValidationIcon(conversifiValidation)}
+            </Label>
             <Input
               placeholder="https://server.conversifi.io/..."
               value={formData.conversifi_webhook_url}
               onChange={(e) => setFormData({ ...formData, conversifi_webhook_url: e.target.value })}
+              onBlur={(e) => validateConversifiUrl(e.target.value)}
             />
+            {conversifiValidation === "valid" && (
+              <p className="text-xs text-success flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Webhook URL validated successfully
+              </p>
+            )}
+            {conversifiError && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                {conversifiError}
+              </p>
+            )}
           </div>
+
+          {/* Calendly Event Types Section */}
+          {connection.calendly_token && (
+            <div className="space-y-3 p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">Calendly Event Types</span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs"
+                  onClick={fetchEventTypes}
+                  disabled={loadingEventTypes}
+                >
+                  <RefreshCw className={`h-3 w-3 mr-1 ${loadingEventTypes ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+
+              {loadingEventTypes ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Loading event types...
+                </div>
+              ) : eventTypes.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={selectAllEventTypes}
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={clearEventTypes}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                    {eventTypes.map((et) => {
+                      const isSelected = selectedEventTypes.includes(et.uri);
+                      return (
+                        <button
+                          key={et.uri}
+                          type="button"
+                          onClick={() => toggleEventType(et.uri)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          {et.name}
+                          {et.duration && <span className="opacity-70">({et.duration}m)</span>}
+                          {isSelected && <X className="h-3 w-3" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedEventTypes.length === 0
+                      ? 'All events will be tracked (no filter)'
+                      : `${selectedEventTypes.length} event type${selectedEventTypes.length === 1 ? '' : 's'} selected`}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No event types found</p>
+              )}
+            </div>
+          )}
 
           {/* Notification Channels Section */}
           <div className="space-y-4 p-4 rounded-lg border border-dashed border-primary/30 bg-primary/5">
