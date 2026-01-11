@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff, Hash, RefreshCw, Calendar, X, Copy, Check } from "lucide-react";
+import { Loader2, Link2, CheckCircle2, AlertCircle, Eye, EyeOff, Hash, RefreshCw, Calendar, X, Copy, Check, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,6 +45,7 @@ const formSchema = z.object({
   slackChannel: z.string().optional(),
   discordChannel: z.string().optional(),
   conversifiWebhook: z.string().url("Please enter a valid URL"),
+  clientTimezone: z.string().min(1, "Please select a timezone"),
 }).refine(
   (data) => data.slackChannel || data.discordChannel,
   { message: "Please select at least one notification channel (Slack or Discord)", path: ["slackChannel"] }
@@ -147,6 +148,7 @@ const IntegrationForm = () => {
       slackChannel: "",
       discordChannel: "",
       conversifiWebhook: "",
+      clientTimezone: "America/New_York",
     },
     mode: "onChange",
   });
@@ -423,7 +425,8 @@ const IntegrationForm = () => {
           discord_channel_name: selectedDiscordChannel?.name || null,
           discord_guild_id: selectedDiscordChannel?.guildId || null,
           discord_guild_name: selectedDiscordChannel?.guildName || null,
-          conversifi_webhook_url: values.conversifiWebhook
+          conversifi_webhook_url: values.conversifiWebhook,
+          client_timezone: values.clientTimezone
         }
       });
 
@@ -1097,6 +1100,44 @@ const IntegrationForm = () => {
                     </p>
                   )}
                 </div>
+
+                {/* Client Timezone Section */}
+                <FormField
+                  control={form.control}
+                  name="clientTimezone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-foreground font-medium flex items-center gap-2">
+                        <Globe className="h-4 w-4" />
+                        Client Timezone
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
+                            <SelectValue placeholder="Select timezone for notifications" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-popover border shadow-lg max-h-60 z-50">
+                          <SelectItem value="UTC">UTC</SelectItem>
+                          <SelectItem value="America/New_York">Eastern Time (ET)</SelectItem>
+                          <SelectItem value="America/Chicago">Central Time (CT)</SelectItem>
+                          <SelectItem value="America/Denver">Mountain Time (MT)</SelectItem>
+                          <SelectItem value="America/Los_Angeles">Pacific Time (PT)</SelectItem>
+                          <SelectItem value="Europe/London">London (GMT/BST)</SelectItem>
+                          <SelectItem value="Europe/Paris">Paris (CET/CEST)</SelectItem>
+                          <SelectItem value="Asia/Dubai">Dubai (GST)</SelectItem>
+                          <SelectItem value="Asia/Singapore">Singapore (SGT)</SelectItem>
+                          <SelectItem value="Asia/Tokyo">Tokyo (JST)</SelectItem>
+                          <SelectItem value="Australia/Sydney">Sydney (AEST)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription className="text-xs text-muted-foreground">
+                        All booking notification times will be displayed in this timezone
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
                 <Button
                   type="submit"

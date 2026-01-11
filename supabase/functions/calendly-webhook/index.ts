@@ -256,7 +256,8 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Format event time for display
+    // Format event time for display using client's timezone
+    const clientTimezone = connection.client_timezone || inviteeTimezone || 'UTC';
     const formattedTime = eventTime 
       ? new Date(eventTime).toLocaleString('en-US', { 
           weekday: 'short',
@@ -264,6 +265,7 @@ Deno.serve(async (req: Request) => {
           day: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
+          timeZone: clientTimezone,
           timeZoneName: 'short'
         })
       : 'Time not specified';
@@ -367,7 +369,6 @@ Deno.serve(async (req: Request) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               username: 'Conversifi Notifications',
-              avatar_url: 'https://ifnxhardrbzrtoghhfcr.lovableproject.com/discordlogo.png',
               embeds: [embed]
             })
           });
@@ -661,7 +662,6 @@ Deno.serve(async (req: Request) => {
 
         const discordPayload: any = {
           username: 'Conversifi Notifications',
-          avatar_url: 'https://ifnxhardrbzrtoghhfcr.lovableproject.com/discordlogo.png',
           embeds: [embed]
         };
         if (components.length > 0) {

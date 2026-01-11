@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.upload-conversation-pdf]
 verify_jwt = false
+
+[functions.update-client-timezone]
+verify_jwt = false
