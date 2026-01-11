@@ -367,7 +367,7 @@ Deno.serve(async (req: Request) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               username: 'Conversifi Notifications',
-              avatar_url: 'https://client.conversifi.io/discordlogo.png',
+              avatar_url: 'https://ifnxhardrbzrtoghhfcr.lovableproject.com/discordlogo.png',
               embeds: [embed]
             })
           });
@@ -661,7 +661,7 @@ Deno.serve(async (req: Request) => {
 
         const discordPayload: any = {
           username: 'Conversifi Notifications',
-          avatar_url: 'https://client.conversifi.io/discordlogo.png',
+          avatar_url: 'https://ifnxhardrbzrtoghhfcr.lovableproject.com/discordlogo.png',
           embeds: [embed]
         };
         if (components.length > 0) {
