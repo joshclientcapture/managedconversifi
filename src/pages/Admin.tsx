@@ -32,6 +32,7 @@ interface ClientConnection {
   calendly_org_uri: string;
   calendly_user_uri: string;
   calendly_webhook_id: string | null;
+  ghl_location_id: string;
   ghl_location_name: string;
   ghl_api_key: string | null;
   slack_channel_id: string | null;
@@ -46,6 +47,7 @@ interface ClientConnection {
   access_token: string | null;
   is_active: boolean;
   created_at: string;
+  watched_event_types: any; // JSON type from database
 }
 
 const Admin = () => {

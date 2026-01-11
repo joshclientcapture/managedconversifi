@@ -342,7 +342,8 @@ const IntegrationForm = () => {
     
     if (!apiKey || apiKey.length < 10) {
       setGhlApiKeyError(null);
-      setStatuses(prev => ({ ...prev, ghl: locationId ? "connected" : "idle" }));
+      // Keep GHL status idle if no valid API key
+      setStatuses(prev => ({ ...prev, ghl: "idle" }));
       return;
     }
 
@@ -833,7 +834,10 @@ const IntegrationForm = () => {
                       </div>
                       <Select onValueChange={(value) => {
                         field.onChange(value);
-                        setStatuses(prev => ({ ...prev, ghl: "connected" }));
+                        // Don't set GHL to connected just for selecting a location - API key must be validated
+                        setStatuses(prev => ({ ...prev, ghl: "idle" }));
+                        // Clear API key error when location changes
+                        setGhlApiKeyError(null);
                       }} value={field.value}>
                         <FormControl>
                           <SelectTrigger className="h-11 bg-background border-input focus:ring-2 focus:ring-primary/20 transition-all">
