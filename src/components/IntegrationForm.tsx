@@ -213,9 +213,7 @@ const IntegrationForm = () => {
       
       if (error) throw error;
       setDiscordChannels(data?.channels || []);
-      if (data?.channels?.length > 0) {
-        setStatuses(prev => ({ ...prev, discord: "connected" }));
-      }
+      // Don't set discord status to "connected" here - only when user selects a channel
     } catch (error) {
       console.error('Error fetching Discord channels:', error);
       // Don't show error - Discord is optional
