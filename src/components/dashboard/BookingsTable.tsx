@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { format } from "date-fns";
 import { toZonedTime } from "date-fns-tz";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive, ArchiveRestore, ChevronDown, ChevronUp } from "lucide-react";
+import { Calendar, ExternalLink, Check, X, Loader2, MessageSquare, Phone, Mail, Archive, ArchiveRestore, ChevronDown, ChevronUp, Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 interface Booking {
@@ -34,6 +34,7 @@ interface Booking {
   closer_notes: string | null;
   raw_payload: any;
   archived: boolean | null;
+  conversation_pdf_url?: string | null;
 }
 
 interface BookingsTableProps {
@@ -58,6 +59,9 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
   const [savingNotes, setSavingNotes] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set());
+  const [uploadingPdf, setUploadingPdf] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedBookingForUpload, setSelectedBookingForUpload] = useState<string | null>(null);
 
   const formatTime = (dateStr: string | null) => {
     if (!dateStr) return 'N/A';
@@ -113,7 +117,49 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
       toast.error('Failed to save notes');
       console.error(err);
     } finally {
-      setSavingNotes(false);
+    setSavingNotes(false);
+    }
+  };
+
+  const handleUploadClick = (bookingId: string) => {
+    setSelectedBookingForUpload(bookingId);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedBookingForUpload) return;
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Only PDF files are allowed');
+      return;
+    }
+
+    setUploadingPdf(selectedBookingForUpload);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('booking_id', selectedBookingForUpload);
+      formData.append('access_token', accessToken);
+
+      const { data, error } = await supabase.functions.invoke('upload-conversation-pdf', {
+        body: formData
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error);
+
+      toast.success('Conversation PDF uploaded and notification sent');
+      onUpdate();
+    } catch (err) {
+      toast.error('Failed to upload conversation PDF');
+      console.error(err);
+    } finally {
+      setUploadingPdf(null);
+      setSelectedBookingForUpload(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -190,6 +236,14 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
 
   return (
     <>
+      {/* Hidden file input for PDF upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="application/pdf"
+        className="hidden"
+        onChange={handleFileChange}
+      />
       <Card className="gradient-card shadow-card">
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -352,6 +406,41 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
+                            {/* Conversation PDF Upload/View Button */}
+                            {past && booking.event_status !== 'canceled' && (
+                              booking.conversation_pdf_url ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-primary"
+                                  asChild
+                                  title="View Conversation"
+                                >
+                                  <a href={booking.conversation_pdf_url} target="_blank" rel="noopener noreferrer">
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    View
+                                  </a>
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2"
+                                  onClick={() => handleUploadClick(booking.id)}
+                                  disabled={uploadingPdf === booking.id}
+                                  title="Upload Conversation PDF"
+                                >
+                                  {uploadingPdf === booking.id ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <Upload className="h-3 w-3 mr-1" />
+                                      Upload
+                                    </>
+                                  )}
+                                </Button>
+                              )
+                            )}
                             {past && booking.event_status !== 'canceled' && (
                               <Button
                                 size="sm"
