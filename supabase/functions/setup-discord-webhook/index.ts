@@ -156,7 +156,6 @@ Deno.serve(async (req: Request) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: 'Conversifi Notifications',
-          avatar_url: 'https://ifnxhardrbzrtoghhfcr.lovableproject.com/discordlogo.png',
           embeds: [{
             title: '✅ Discord Connected',
             description: 'Booking notifications will now be sent to this channel.',

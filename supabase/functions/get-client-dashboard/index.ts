@@ -86,7 +86,8 @@ Deno.serve(async (req: Request) => {
           id: connection.id,
           client_name: connection.client_name,
           is_active: connection.is_active,
-          created_at: connection.created_at
+          created_at: connection.created_at,
+          client_timezone: connection.client_timezone || 'UTC'
         },
         stats: {
           latest: latestStats,

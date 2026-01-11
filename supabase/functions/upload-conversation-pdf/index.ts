@@ -141,7 +141,6 @@ Deno.serve(async (req: Request) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             username: 'Conversifi Notifications',
-            avatar_url: 'https://client.conversifi.io/discordlogo.png',
             content: `✅ A conversation transcript is now available! [View in Dashboard](${clientPortalUrl}) or [View PDF directly](${pdfUrl})`,
             embeds: [embed]
           })

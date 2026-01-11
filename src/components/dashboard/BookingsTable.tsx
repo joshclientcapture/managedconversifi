@@ -406,8 +406,8 @@ const BookingsTable = ({ bookings, accessToken, timezone, onUpdate }: BookingsTa
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
-                            {/* Conversation PDF Upload/View Button */}
-                            {past && booking.event_status !== 'canceled' && (
+                            {/* Conversation PDF Upload/View Button - always show for non-canceled bookings */}
+                            {booking.event_status !== 'canceled' && (
                               booking.conversation_pdf_url ? (
                                 <Button
                                   size="sm"

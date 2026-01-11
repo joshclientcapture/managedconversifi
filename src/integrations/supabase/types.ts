@@ -173,6 +173,7 @@ export type Database = {
           calendly_user_uri: string
           calendly_webhook_id: string | null
           client_name: string
+          client_timezone: string
           conversifi_webhook_url: string | null
           created_at: string | null
           discord_channel_id: string | null
@@ -198,6 +199,7 @@ export type Database = {
           calendly_user_uri: string
           calendly_webhook_id?: string | null
           client_name: string
+          client_timezone?: string
           conversifi_webhook_url?: string | null
           created_at?: string | null
           discord_channel_id?: string | null
@@ -223,6 +225,7 @@ export type Database = {
           calendly_user_uri?: string
           calendly_webhook_id?: string | null
           client_name?: string
+          client_timezone?: string
           conversifi_webhook_url?: string | null
           created_at?: string | null
           discord_channel_id?: string | null

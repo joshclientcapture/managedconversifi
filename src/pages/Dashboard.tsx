@@ -4,6 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Loader2, LogOut, BarChart3, Calendar, Globe, RefreshCw, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -21,6 +31,7 @@ interface DashboardData {
     client_name: string;
     is_active: boolean;
     created_at: string;
+    client_timezone?: string;
   };
   stats: {
     latest: any;
@@ -71,6 +82,10 @@ const Dashboard = () => {
     return false;
   });
 
+  // Timezone change confirmation
+  const [pendingTimezone, setPendingTimezone] = useState<string | null>(null);
+  const [updatingTimezone, setUpdatingTimezone] = useState(false);
+
   // Listen for theme changes
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -94,6 +109,13 @@ const Dashboard = () => {
       setData(result);
       localStorage.setItem('dashboard_access_token', token);
       setAccessToken(token);
+
+      // Set timezone from connection if no local preference exists
+      const storedTimezone = localStorage.getItem('dashboard_timezone');
+      if (!storedTimezone && result.connection?.client_timezone) {
+        setTimezone(result.connection.client_timezone);
+        localStorage.setItem('dashboard_timezone', result.connection.client_timezone);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load dashboard');
       localStorage.removeItem('dashboard_access_token');
@@ -117,9 +139,39 @@ const Dashboard = () => {
     setData(null);
   };
 
-  const handleTimezoneChange = (tz: string) => {
-    setTimezone(tz);
-    localStorage.setItem('dashboard_timezone', tz);
+  const handleTimezoneSelect = (tz: string) => {
+    // Show confirmation dialog
+    setPendingTimezone(tz);
+  };
+
+  const confirmTimezoneChange = async () => {
+    if (!pendingTimezone) return;
+    
+    setUpdatingTimezone(true);
+    try {
+      // Update backend
+      const { data: result, error } = await supabase.functions.invoke('update-client-timezone', {
+        body: { access_token: accessToken, client_timezone: pendingTimezone }
+      });
+
+      if (error || !result?.success) {
+        throw new Error(result?.error || 'Failed to update timezone');
+      }
+
+      // Update local state
+      setTimezone(pendingTimezone);
+      localStorage.setItem('dashboard_timezone', pendingTimezone);
+      toast.success('Timezone updated');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update timezone');
+    } finally {
+      setUpdatingTimezone(false);
+      setPendingTimezone(null);
+    }
+  };
+
+  const cancelTimezoneChange = () => {
+    setPendingTimezone(null);
   };
 
   const handleSyncStats = async () => {
@@ -222,7 +274,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-muted-foreground" />
-              <Select value={timezone} onValueChange={handleTimezoneChange}>
+              <Select value={timezone} onValueChange={handleTimezoneSelect}>
                 <SelectTrigger className="w-[180px] h-9">
                   <SelectValue />
                 </SelectTrigger>
@@ -306,6 +358,34 @@ const Dashboard = () => {
         </Tabs>
         </div>
       </main>
+
+      {/* Timezone Change Confirmation Dialog */}
+      <AlertDialog open={!!pendingTimezone} onOpenChange={() => !updatingTimezone && cancelTimezoneChange()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Timezone?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Changing your timezone will also affect the timing displayed in booking notification messages (Slack/Discord). 
+              All future notifications will show times in the new timezone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelTimezoneChange} disabled={updatingTimezone}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmTimezoneChange} disabled={updatingTimezone}>
+              {updatingTimezone ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Confirm'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -27,7 +27,8 @@ Deno.serve(async (req: Request) => {
       discord_channel_name,
       discord_guild_id,
       discord_guild_name,
-      conversifi_webhook_url
+      conversifi_webhook_url,
+      client_timezone
     } = await req.json();
 
     console.log(`Setting up client with token: ${access_token?.substring(0, 8)}...`);
@@ -148,28 +149,49 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Step 3: Create Discord webhook if Discord channel selected
+    // Step 3: Create Discord webhook if Discord channel selected (with avatar)
     let discordWebhookUrl = null;
     if (discord_channel_id) {
       const botToken = Deno.env.get('DISCORD_BOT_TOKEN');
       if (botToken) {
         try {
-          console.log('Creating Discord webhook...');
+          console.log('Creating Discord webhook with avatar...');
+          
+          // Fetch the Conversifi logo and convert to base64 for Discord avatar
+          let avatarDataUri = null;
+          try {
+            const logoResponse = await fetch('https://client.conversifi.io/discordlogo.png');
+            if (logoResponse.ok) {
+              const logoBuffer = await logoResponse.arrayBuffer();
+              const logoBase64 = btoa(String.fromCharCode(...new Uint8Array(logoBuffer)));
+              avatarDataUri = `data:image/png;base64,${logoBase64}`;
+              console.log('Conversifi logo fetched and converted to base64 for avatar');
+            }
+          } catch (avatarError) {
+            console.warn('Failed to fetch avatar image:', avatarError);
+          }
+          
+          const webhookPayload: any = {
+            name: 'Conversifi Notifications',
+          };
+          
+          if (avatarDataUri) {
+            webhookPayload.avatar = avatarDataUri;
+          }
+          
           const webhookResponse = await fetch(`https://discord.com/api/v10/channels/${discord_channel_id}/webhooks`, {
             method: 'POST',
             headers: {
               'Authorization': `Bot ${botToken}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-              name: 'Conversifi Notifications',
-            }),
+            body: JSON.stringify(webhookPayload),
           });
 
           if (webhookResponse.ok) {
             const webhookData = await webhookResponse.json();
             discordWebhookUrl = `https://discord.com/api/webhooks/${webhookData.id}/${webhookData.token}`;
-            console.log('Discord webhook created:', webhookData.id);
+            console.log('Discord webhook created with avatar:', webhookData.id);
           } else {
             console.warn('Failed to create Discord webhook:', await webhookResponse.text());
           }
@@ -205,6 +227,7 @@ Deno.serve(async (req: Request) => {
         discord_webhook_url: discordWebhookUrl,
         discord_enabled: !!discord_channel_id,
         conversifi_webhook_url,
+        client_timezone: client_timezone || 'UTC',
         is_active: true
       })
       .select()
