@@ -59,3 +59,6 @@ verify_jwt = false
 
 [functions.trigger-webhook]
 verify_jwt = false
+
+[functions.upload-conversation-pdf]
+verify_jwt = false
