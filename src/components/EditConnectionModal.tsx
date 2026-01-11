@@ -19,8 +19,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, RefreshCw, Hash, CheckCircle2, AlertCircle, Calendar, X, Eye, EyeOff } from "lucide-react";
+import { Loader2, RefreshCw, Hash, CheckCircle2, AlertCircle, Calendar, X, Eye, EyeOff, Globe } from "lucide-react";
 import { toast } from "sonner";
+
+const TIMEZONES = [
+  { value: 'UTC', label: 'UTC' },
+  { value: 'America/New_York', label: 'Eastern Time (ET)' },
+  { value: 'America/Chicago', label: 'Central Time (CT)' },
+  { value: 'America/Denver', label: 'Mountain Time (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific Time (PT)' },
+  { value: 'Europe/London', label: 'London (GMT/BST)' },
+  { value: 'Europe/Paris', label: 'Central European (CET)' },
+  { value: 'Asia/Dubai', label: 'Dubai (GST)' },
+  { value: 'Asia/Singapore', label: 'Singapore (SGT)' },
+  { value: 'Asia/Tokyo', label: 'Tokyo (JST)' },
+  { value: 'Australia/Sydney', label: 'Sydney (AEST)' },
+];
 
 interface ClientConnection {
   id: string;
@@ -41,6 +55,7 @@ interface ClientConnection {
   calendly_token: string | null;
   calendly_user_uri: string | null;
   watched_event_types: any; // JSON type from database
+  client_timezone: string | null;
 }
 
 interface SlackChannel {
@@ -97,6 +112,7 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
     is_active: true,
     slack_channel_id: '',
     discord_channel_id: '',
+    client_timezone: 'America/New_York',
   });
 
   // Prefill form data when connection changes
@@ -109,6 +125,7 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
         is_active: connection.is_active ?? true,
         slack_channel_id: connection.slack_channel_id || '',
         discord_channel_id: connection.discord_channel_id || '',
+        client_timezone: connection.client_timezone || 'America/New_York',
       });
       
       // Set initial selected event types from connection
@@ -335,6 +352,7 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
         slack_channel_id: formData.slack_channel_id || null,
         slack_channel_name: selectedSlackChannel?.name || null,
         watched_event_types: selectedEventTypes.length > 0 ? selectedEventTypes : null,
+        client_timezone: formData.client_timezone,
       };
 
       // Only update Discord fields if we didn't just call setup-discord-webhook
@@ -470,6 +488,31 @@ const EditConnectionModal = ({ connection, onClose, onSave }: EditConnectionModa
                 {conversifiError}
               </p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              Client Timezone
+            </Label>
+            <Select
+              value={formData.client_timezone}
+              onValueChange={(value) => setFormData({ ...formData, client_timezone: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select timezone" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEZONES.map((tz) => (
+                  <SelectItem key={tz.value} value={tz.value}>
+                    {tz.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              All booking notifications will be displayed in this timezone
+            </p>
           </div>
 
           {/* Calendly Event Types Section */}

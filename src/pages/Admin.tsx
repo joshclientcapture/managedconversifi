@@ -48,6 +48,7 @@ interface ClientConnection {
   is_active: boolean;
   created_at: string;
   watched_event_types: any; // JSON type from database
+  client_timezone: string | null;
 }
 
 const Admin = () => {
